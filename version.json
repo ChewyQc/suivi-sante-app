@@ -1,5 +1,5 @@
 {
-  "version": "1.5",
-  "apkUrl": "https://github.com/ChewyQc/suivi-sante-app/releases/latest/download/SuiviSante.apk",
-  "notes": "Optimisation du code"
+    "version":  "1.55",
+    "apkUrl":  "https://github.com/ChewyQc/suivi-sante-app/releases/latest/download/SuiviSante.apk",
+    "notes":  "juste un test du nouveau script aucun changement au code"
 }
