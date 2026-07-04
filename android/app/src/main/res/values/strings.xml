@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Suivi Sante</string>
+    <string name="title_activity_main">Suivi Sante</string>
+    <string name="package_name">com.epitome.suivisante</string>
+    <string name="custom_url_scheme">com.epitome.suivisante</string>
+</resources>
