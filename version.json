@@ -1,5 +1,5 @@
 {
-  "version": "1.4",
+  "version": "1.5",
   "apkUrl": "https://github.com/ChewyQc/suivi-sante-app/releases/latest/download/SuiviSante.apk",
-  "notes": "Test : la mise à jour se télécharge maintenant dans ton navigateur habituel."
+  "notes": "Optimisation du code"
 }
