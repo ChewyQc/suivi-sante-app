@@ -1,5 +1,5 @@
 {
-  "version": "1.3",
+  "version": "1.4",
   "apkUrl": "https://github.com/ChewyQc/suivi-sante-app/releases/latest/download/SuiviSante.apk",
-  "notes": "Correction du téléchargement des mises à jour (ouverture dans le navigateur du téléphone)."
+  "notes": "Test : la mise à jour se télécharge maintenant dans ton navigateur habituel."
 }
