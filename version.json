@@ -1,5 +1,5 @@
 {
-  "version": "1.1",
+  "version": "1.2",
   "apkUrl": "https://github.com/ChewyQc/suivi-sante-app/releases/latest/download/SuiviSante.apk",
-  "notes": "Bouton PDF et CSV corrigés : les fichiers s'enregistrent dans Documents > SuiviSante. Vérification de mise à jour intégrée."
+  "notes": "Test du système de mise à jour automatique."
 }
