@@ -140,7 +140,7 @@ var NOTIF_KEY = "suivi-sante-last-notif";
 var WEIGHT="#3f6f6a", SYS="#c4543b", DIA="#d99a4e", DOSE="#6d5b97", LINE="#dcd6c8", MUTE="#7c8480";
 var CAP = (window.Capacitor && window.Capacitor.Plugins) ? window.Capacitor.Plugins : null;
 var REMINDER_ID = 9001;
-var APP_VERSION = "1.2";
+var APP_VERSION = "1.3";
 var UPDATE_URL = "https://raw.githubusercontent.com/ChewyQc/suivi-sante-app/main/version.json";
 
 function cmpVer(a,b){
@@ -153,8 +153,15 @@ function cmpVer(a,b){
   return 0;
 }
 function openExternal(url){
-  if(CAP && CAP.Browser){ CAP.Browser.open({url:url}).catch(function(){ window.open(url,"_blank"); }); }
-  else{ window.open(url,"_blank"); }
+  if(CAP && CAP.AppLauncher){
+    CAP.AppLauncher.openUrl({url:url}).catch(function(){
+      if(CAP.Browser){ CAP.Browser.open({url:url}); } else { window.open(url,"_blank"); }
+    });
+  }else if(CAP && CAP.Browser){
+    CAP.Browser.open({url:url}).catch(function(){ window.open(url,"_blank"); });
+  }else{
+    window.open(url,"_blank");
+  }
 }
 function checkUpdate(manual){
   fetch(UPDATE_URL+"?t="+Date.now(), {cache:"no-store"})
