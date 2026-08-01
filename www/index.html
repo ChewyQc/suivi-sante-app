@@ -142,16 +142,15 @@ var NOTIF_KEY = "suivi-sante-last-notif";
 var WEIGHT="#3f6f6a", SYS="#c4543b", DIA="#d99a4e", DOSE="#6d5b97", GLU="#2f8f9d", LINE="#dcd6c8", MUTE="#7c8480";
 var CAP = (window.Capacitor && window.Capacitor.Plugins) ? window.Capacitor.Plugins : null;
 var REMINDER_ID = 9001;
-var APP_VERSION = "1.6";
+var APP_VERSION = "1.56";
 var UPDATE_URL = "https://raw.githubusercontent.com/ChewyQc/suivi-sante-app/main/version.json";
 
 function cmpVer(a,b){
-  var pa=String(a).split("."), pb=String(b).split(".");
-  for(var i=0;i<Math.max(pa.length,pb.length);i++){
-    var na=parseInt(pa[i]||"0",10), nb=parseInt(pb[i]||"0",10);
-    if(na>nb) return 1;
-    if(na<nb) return -1;
-  }
+  // Versions ici sont des nombres decimaux (1.5 < 1.55 < 1.6), pas des segments
+  // entiers separes par point (ou "6" < "55" casserait 1.6 vs 1.55).
+  var fa=parseFloat(a), fb=parseFloat(b);
+  if(fa>fb) return 1;
+  if(fa<fb) return -1;
   return 0;
 }
 function openExternal(url){

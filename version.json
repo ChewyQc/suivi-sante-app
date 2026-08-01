@@ -1,5 +1,5 @@
 {
-    "version":  "1.6",
+    "version":  "1.56",
     "apkUrl":  "https://github.com/ChewyQc/suivi-sante-app/releases/latest/download/SuiviSante.apk",
-    "notes":  "Ajout du suivi de la glycemie (mmol/L)"
+    "notes":  "Correction de la verification des mises a jour (1.6 etait vu comme plus vieux que 1.55)"
 }
