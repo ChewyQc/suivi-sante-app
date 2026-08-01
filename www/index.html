@@ -130,17 +130,17 @@
     <section id="summary" class="card summary no-print" style="display:none;"></section>
 
     <section class="card no-print">
-      <div class="row">
+      <div class="row" id="row-weight">
         <label class="fld"><span class="lab">Poids (lbs)</span><input id="weight" inputmode="decimal" placeholder="261.4"></label>
       </div>
-      <div class="row mt">
+      <div class="row mt" id="row-bp">
         <label class="fld"><span class="lab">Systolique</span><input id="sys" inputmode="numeric" placeholder="120"></label>
         <label class="fld"><span class="lab">Diastolique</span><input id="dia" inputmode="numeric" placeholder="80"></label>
       </div>
-      <div class="row mt">
+      <div class="row mt" id="row-dose">
         <label class="fld"><span class="lab">Dose d'injection (mg)</span><input id="dose" inputmode="decimal" placeholder="0.25 / 0.5 / 1 / 2"></label>
       </div>
-      <div class="row mt">
+      <div class="row mt" id="row-glucose">
         <label class="fld"><span class="lab">Glycémie (mmol/L)</span><input id="glucose" inputmode="decimal" placeholder="5.5"></label>
       </div>
       <div class="mt">
@@ -223,7 +223,7 @@ var PALETTES = {
 var WEIGHT,SYS,DIA,DOSE,GLU,LINE,MUTE;
 var CAP = (window.Capacitor && window.Capacitor.Plugins) ? window.Capacitor.Plugins : null;
 var REMINDER_ID = 9001;
-var APP_VERSION = "2.0";
+var APP_VERSION = "2.01";
 var UPDATE_URL = "https://raw.githubusercontent.com/ChewyQc/suivi-sante-app/main/version.json";
 
 function getTheme(){
@@ -249,6 +249,12 @@ function loadFields(){
   return {weight:true,bp:true,dose:true,glucose:true};
 }
 function saveFields(f){ try{ localStorage.setItem(FIELDS_KEY, JSON.stringify(f)); }catch(e){} }
+function applyFieldVisibility(f){
+  document.getElementById("row-weight").style.display = f.weight? "" : "none";
+  document.getElementById("row-bp").style.display = f.bp? "" : "none";
+  document.getElementById("row-dose").style.display = f.dose? "" : "none";
+  document.getElementById("row-glucose").style.display = f.glucose? "" : "none";
+}
 
 function switchTab(name){
   document.querySelectorAll(".tabpanel").forEach(function(el){ el.classList.remove("active"); });
@@ -749,11 +755,13 @@ $("fld-weight").checked = !!fieldsNow.weight;
 $("fld-bp").checked = !!fieldsNow.bp;
 $("fld-dose").checked = !!fieldsNow.dose;
 $("fld-glucose").checked = !!fieldsNow.glucose;
+applyFieldVisibility(fieldsNow);
 [["fld-weight","weight"],["fld-bp","bp"],["fld-dose","dose"],["fld-glucose","glucose"]].forEach(function(pair){
   $(pair[0]).addEventListener("change", function(){
     var f = loadFields();
     f[pair[1]] = this.checked;
     saveFields(f);
+    applyFieldVisibility(f);
     render();
   });
 });
