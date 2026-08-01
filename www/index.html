@@ -223,7 +223,7 @@ var PALETTES = {
 var WEIGHT,SYS,DIA,DOSE,GLU,LINE,MUTE;
 var CAP = (window.Capacitor && window.Capacitor.Plugins) ? window.Capacitor.Plugins : null;
 var REMINDER_ID = 9001;
-var APP_VERSION = "2.01";
+var APP_VERSION = "2.02";
 var UPDATE_URL = "https://raw.githubusercontent.com/ChewyQc/suivi-sante-app/main/version.json";
 
 function getTheme(){
@@ -471,38 +471,134 @@ function saveFileNative(fileName, base64Data){
       shareFileNative(fileName, base64Data);
     });
 }
+function hexToRgb(hex){
+  var h = String(hex).replace("#","");
+  return [parseInt(h.substring(0,2),16), parseInt(h.substring(2,4),16), parseInt(h.substring(4,6),16)];
+}
+
+function pdfLineChart(doc, x, y, w, h, data, key, colorHex, label2, color2Hex){
+  var padL=11, padR=4, padT=4, padB=7;
+  var pts = data.filter(function(d){return d[key]!=null;});
+  if(pts.length===0) return;
+  var vals=[]; pts.forEach(function(d){ vals.push(d[key]); if(label2 && d[label2]!=null) vals.push(d[label2]); });
+  var min=Math.min.apply(null,vals), max=Math.max.apply(null,vals);
+  if(min===max){ min-=2; max+=2; }
+  var pad=(max-min)*0.15; min-=pad; max+=pad;
+  var n=data.length;
+  function X(i){ return x+padL + (n<=1? (w-padL-padR)/2 : i*(w-padL-padR)/(n-1)); }
+  function Y(v){ return y+padT + (1-(v-min)/(max-min))*(h-padT-padB); }
+
+  var lineRgb = hexToRgb("#dcd6c8"), muteRgb = hexToRgb("#7c8480");
+  doc.setLineWidth(0.15);
+  doc.setDrawColor(lineRgb[0],lineRgb[1],lineRgb[2]);
+  doc.setFont("helvetica","normal"); doc.setFontSize(6); doc.setTextColor(muteRgb[0],muteRgb[1],muteRgb[2]);
+  for(var g=0; g<=3; g++){
+    var gy = y+padT + g*(h-padT-padB)/3;
+    var gv = max-(g*(max-min)/3);
+    doc.line(x+padL, gy, x+w-padR, gy);
+    doc.text(gv.toFixed(0), x+1, gy+1.3);
+  }
+  var step = n>10 ? Math.ceil(n/8) : 1;
+  data.forEach(function(d,i){
+    if(i%step!==0 && i!==n-1) return;
+    doc.text(String(d.label), X(i), y+h-1, {align:"center"});
+  });
+
+  function drawSeries(k, hex){
+    var rgb = hexToRgb(hex);
+    doc.setDrawColor(rgb[0],rgb[1],rgb[2]);
+    doc.setFillColor(rgb[0],rgb[1],rgb[2]);
+    doc.setLineWidth(0.45);
+    var prev=null;
+    data.forEach(function(d,i){
+      if(d[k]==null) return;
+      var px=X(i), py=Y(d[k]);
+      if(prev){ doc.line(prev[0],prev[1],px,py); }
+      doc.circle(px,py,0.65,"F");
+      prev=[px,py];
+    });
+  }
+  drawSeries(key, colorHex);
+  if(label2){ drawSeries(label2, color2Hex); }
+}
+
 function buildPdf(){
   var jsPDF = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : null;
   if(!jsPDF) return null;
   var doc = new jsPDF({unit:"mm", format:"a4"});
   var sorted = entries.slice().sort(function(a,b){return new Date(b.ts)-new Date(a.ts);});
+  var asc = entries.slice().sort(function(a,b){return new Date(a.ts)-new Date(b.ts);});
+  var chrono = asc.map(function(e){
+    return {
+      label:new Date(e.ts).toLocaleDateString("fr-CA",{day:"2-digit",month:"2-digit"}),
+      weight:e.weight, sys:e.sys, dia:e.dia, glucose:e.glucose
+    };
+  });
+  var hasW = entries.some(function(e){return e.weight!=null;});
+  var hasBP = entries.some(function(e){return e.sys!=null;});
+  var hasGlu = entries.some(function(e){return e.glucose!=null;});
   var pageW = doc.internal.pageSize.getWidth();
   var pageH = doc.internal.pageSize.getHeight();
-  var margin = 14, y = 18;
-  doc.setFont("helvetica","bold"); doc.setFontSize(16);
+  var margin = 14, y = 20;
+  var ink = hexToRgb("#16302b"), mute = hexToRgb("#7c8480"), card = hexToRgb("#fffdf8"), line = hexToRgb("#dcd6c8");
+
+  // --- En-tête ---
+  doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(63,111,106);
+  doc.text("JOURNAL DE SANTÉ", margin, y); y += 6;
+  doc.setFont("helvetica","bold"); doc.setFontSize(18); doc.setTextColor(ink[0],ink[1],ink[2]);
   doc.text("Suivi du poids et de la pression", margin, y); y += 6;
-  doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(110);
-  doc.text("Rapport généré le "+new Date().toLocaleString("fr-CA")+" — "+sorted.length+" entrée(s)", margin, y); y += 9;
-  doc.setTextColor(0);
+  doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(mute[0],mute[1],mute[2]);
+  doc.text("Rapport généré le "+new Date().toLocaleString("fr-CA")+" — "+sorted.length+" entrée(s)", margin, y);
+  y += 4;
+  doc.setDrawColor(line[0],line[1],line[2]); doc.setLineWidth(0.3);
+  doc.line(margin, y, pageW-margin, y);
+  y += 8;
+
+  // --- Graphiques ---
+  var chartDefs = [];
+  if(hasW){ chartDefs.push({title:"Poids (lbs)", color:"#3f6f6a", key:"weight"}); }
+  if(hasBP){ chartDefs.push({title:"Pression artérielle — Sys / Dia (mmHg)", color:"#c4543b", key:"sys", label2:"dia", color2:"#d99a4e"}); }
+  if(hasGlu){ chartDefs.push({title:"Glycémie (mmol/L)", color:"#2f8f9d", key:"glucose"}); }
+
+  var chartH = 42, chartGap = 6;
+  chartDefs.forEach(function(cd){
+    if(y + chartH + 10 > pageH - 14){ doc.addPage(); y = 18; }
+    doc.setFillColor(card[0],card[1],card[2]);
+    doc.setDrawColor(line[0],line[1],line[2]); doc.setLineWidth(0.3);
+    doc.roundedRect(margin, y, pageW-2*margin, chartH, 2, 2, "FD");
+    var rgb = hexToRgb(cd.color);
+    doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(rgb[0],rgb[1],rgb[2]);
+    doc.text(cd.title, margin+4, y+7);
+    pdfLineChart(doc, margin+2, y+9, pageW-2*margin-4, chartH-11, chrono, cd.key, cd.color, cd.label2, cd.color2);
+    y += chartH + chartGap;
+  });
+  if(chartDefs.length){ doc.addPage(); y = 18; }
+
+  // --- Tableau historique ---
   var cols = [
     {t:"Date", w:24}, {t:"Heure", w:18}, {t:"Poids (lbs)", w:24},
-    {t:"Sys", w:14}, {t:"Dia", w:14}, {t:"Dose (mg)", w:22}, {t:"Glyc. (mmol/L)", w:22},
-    {t:"Notes", w:pageW-2*margin-138}
+    {t:"Sys", w:14}, {t:"Dia", w:14}, {t:"Dose (mg)", w:22}, {t:"Glyc.", w:20},
+    {t:"Notes", w:pageW-2*margin-136}
   ];
-  function header(){
-    doc.setFont("helvetica","bold"); doc.setFontSize(9);
-    var x = margin;
+  function tableHeader(){
+    doc.setFillColor(ink[0],ink[1],ink[2]);
+    doc.rect(margin, y-4.6, pageW-2*margin, 7, "F");
+    doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(255,255,255);
+    var x = margin+1.5;
     cols.forEach(function(c){ doc.text(c.t, x, y); x += c.w; });
-    y += 2; doc.setDrawColor(170); doc.line(margin, y, pageW-margin, y);
-    y += 5; doc.setFont("helvetica","normal");
+    y += 4.5; doc.setFont("helvetica","normal"); doc.setTextColor(0);
   }
-  header();
+  tableHeader();
   doc.setFontSize(9);
-  sorted.forEach(function(e){
+  sorted.forEach(function(e,idx){
     var d = new Date(e.ts);
     var noteLines = e.note==null? [] : doc.splitTextToSize(String(e.note), cols[7].w-2);
     var rowH = Math.max(1, noteLines.length)*4.2 + 2.4;
-    if(y + rowH > pageH - 14){ doc.addPage(); y = 18; header(); doc.setFontSize(9); }
+    if(y + rowH > pageH - 14){ doc.addPage(); y = 18; tableHeader(); doc.setFontSize(9); idx=0; }
+    if(idx%2===0){
+      doc.setFillColor(246,243,236);
+      doc.rect(margin, y-3.4, pageW-2*margin, rowH, "F");
+    }
     var vals = [
       d.toLocaleDateString("fr-CA"),
       d.toLocaleTimeString("fr-CA",{hour:"2-digit",minute:"2-digit"}),
@@ -510,7 +606,8 @@ function buildPdf(){
       e.dia==null?"":String(e.dia), e.dose==null?"":String(e.dose),
       e.glucose==null?"":String(e.glucose)
     ];
-    var x = margin;
+    var x = margin+1.5;
+    doc.setTextColor(0);
     vals.forEach(function(v,i){ doc.text(v, x, y); x += cols[i].w; });
     if(noteLines.length){ doc.text(noteLines, x, y); }
     y += rowH;

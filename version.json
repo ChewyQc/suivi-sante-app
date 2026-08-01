@@ -1,5 +1,5 @@
 {
-    "version":  "2.01",
+    "version":  "2.02",
     "apkUrl":  "https://github.com/ChewyQc/suivi-sante-app/releases/latest/download/SuiviSante.apk",
-    "notes":  "Correction : decocher une donnee dans Reglages masque maintenant sa section de saisie sur l\u0027accueil."
+    "notes":  "Le rapport PDF affiche maintenant les graphiques et a un design ameliore (tableau plus lisible)."
 }
