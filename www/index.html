@@ -17,7 +17,7 @@
 <style>
   :root{
     --ink:#16302b; --paper:#f6f3ec; --card:#fffdf8;
-    --weight:#3f6f6a; --sys:#c4543b; --dia:#d99a4e; --dose:#6d5b97;
+    --weight:#3f6f6a; --sys:#c4543b; --dia:#d99a4e; --dose:#6d5b97; --glu:#2f8f9d;
     --line:#dcd6c8; --mute:#7c8480;
   }
   *{box-sizing:border-box;}
@@ -101,6 +101,9 @@
     <div class="row mt">
       <label class="fld"><span class="lab">Dose d'injection (mg)</span><input id="dose" inputmode="decimal" placeholder="0.25 / 0.5 / 1 / 2"></label>
     </div>
+    <div class="row mt">
+      <label class="fld"><span class="lab">Glycémie (mmol/L)</span><input id="glucose" inputmode="decimal" placeholder="5.5"></label>
+    </div>
     <div class="mt">
       <label class="fld"><span class="lab">Date et heure</span><input id="when" type="datetime-local"></label>
     </div>
@@ -136,7 +139,7 @@
 var KEY = "suivi-sante-entries";
 var GOAL_KEY = "suivi-sante-goal";
 var NOTIF_KEY = "suivi-sante-last-notif";
-var WEIGHT="#3f6f6a", SYS="#c4543b", DIA="#d99a4e", DOSE="#6d5b97", LINE="#dcd6c8", MUTE="#7c8480";
+var WEIGHT="#3f6f6a", SYS="#c4543b", DIA="#d99a4e", DOSE="#6d5b97", GLU="#2f8f9d", LINE="#dcd6c8", MUTE="#7c8480";
 var CAP = (window.Capacitor && window.Capacitor.Plugins) ? window.Capacitor.Plugins : null;
 var REMINDER_ID = 9001;
 var APP_VERSION = "1.55";
@@ -259,7 +262,7 @@ function showErr(msg){
   else{ e.style.display="none"; }
 }
 function resetForm(){
-  $("weight").value=""; $("sys").value=""; $("dia").value=""; $("dose").value=""; $("note").value="";
+  $("weight").value=""; $("sys").value=""; $("dia").value=""; $("dose").value=""; $("glucose").value=""; $("note").value="";
   $("when").value=nowLocalInput(); editId=null;
   $("save").textContent="Enregistrer";
   $("cancel").style.display="none";
@@ -268,20 +271,21 @@ function resetForm(){
 
 $("save").onclick=function(){
   var wv=$("weight").value.trim(), sv=$("sys").value.trim(), dv=$("dia").value.trim();
-  var dov=$("dose").value.trim(), nv=$("note").value.trim();
+  var dov=$("dose").value.trim(), gv=$("glucose").value.trim(), nv=$("note").value.trim();
   var w = wv===""? null : parseFloat(wv);
   var s = sv===""? null : parseInt(sv,10);
   var d = dv===""? null : parseInt(dv,10);
   var dose = dov===""? null : parseFloat(dov);
+  var glucose = gv===""? null : parseFloat(gv);
   var note = nv===""? null : nv;
-  if(w===null && s===null && d===null && dose===null && note===null){ showErr("Entre au moins une mesure, une dose ou une note."); return; }
+  if(w===null && s===null && d===null && dose===null && glucose===null && note===null){ showErr("Entre au moins une mesure, une dose ou une note."); return; }
   if((s!==null&&d===null)||(s===null&&d!==null)){ showErr("La pression a besoin des deux nombres (systolique / diastolique)."); return; }
   var ts = $("when").value ? new Date($("when").value).toISOString() : new Date().toISOString();
   var next;
   if(editId){
-    next = entries.map(function(en){ return en.id===editId ? {id:en.id,ts:ts,weight:w,sys:s,dia:d,dose:dose,note:note} : en; });
+    next = entries.map(function(en){ return en.id===editId ? {id:en.id,ts:ts,weight:w,sys:s,dia:d,dose:dose,glucose:glucose,note:note} : en; });
   }else{
-    next = entries.concat([{id:Date.now(),ts:ts,weight:w,sys:s,dia:d,dose:dose,note:note}]);
+    next = entries.concat([{id:Date.now(),ts:ts,weight:w,sys:s,dia:d,dose:dose,glucose:glucose,note:note}]);
   }
   save(next); resetForm(); render();
 };
@@ -295,6 +299,7 @@ function editEntry(id){
   $("sys").value = en.sys==null?"":en.sys;
   $("dia").value = en.dia==null?"":en.dia;
   $("dose").value = en.dose==null?"":en.dose;
+  $("glucose").value = en.glucose==null?"":en.glucose;
   $("note").value = en.note==null?"":en.note;
   $("when").value = toInputVal(en.ts);
   $("save").textContent="Mettre à jour";
@@ -362,8 +367,8 @@ function buildPdf(){
   doc.setTextColor(0);
   var cols = [
     {t:"Date", w:24}, {t:"Heure", w:18}, {t:"Poids (lbs)", w:24},
-    {t:"Sys", w:14}, {t:"Dia", w:14}, {t:"Dose (mg)", w:22},
-    {t:"Notes", w:pageW-2*margin-116}
+    {t:"Sys", w:14}, {t:"Dia", w:14}, {t:"Dose (mg)", w:22}, {t:"Glyc. (mmol/L)", w:22},
+    {t:"Notes", w:pageW-2*margin-138}
   ];
   function header(){
     doc.setFont("helvetica","bold"); doc.setFontSize(9);
@@ -376,14 +381,15 @@ function buildPdf(){
   doc.setFontSize(9);
   sorted.forEach(function(e){
     var d = new Date(e.ts);
-    var noteLines = e.note==null? [] : doc.splitTextToSize(String(e.note), cols[6].w-2);
+    var noteLines = e.note==null? [] : doc.splitTextToSize(String(e.note), cols[7].w-2);
     var rowH = Math.max(1, noteLines.length)*4.2 + 2.4;
     if(y + rowH > pageH - 14){ doc.addPage(); y = 18; header(); doc.setFontSize(9); }
     var vals = [
       d.toLocaleDateString("fr-CA"),
       d.toLocaleTimeString("fr-CA",{hour:"2-digit",minute:"2-digit"}),
       e.weight==null?"":String(e.weight), e.sys==null?"":String(e.sys),
-      e.dia==null?"":String(e.dia), e.dose==null?"":String(e.dose)
+      e.dia==null?"":String(e.dia), e.dose==null?"":String(e.dose),
+      e.glucose==null?"":String(e.glucose)
     ];
     var x = margin;
     vals.forEach(function(v,i){ doc.text(v, x, y); x += cols[i].w; });
@@ -404,13 +410,13 @@ $("pdf").onclick=function(){
 };
 $("csv").onclick=function(){
   var sorted = entries.slice().sort(function(a,b){return new Date(b.ts)-new Date(a.ts);});
-  var head="Date,Heure,Poids (lbs),Systolique,Diastolique,Dose (mg),Notes\n";
+  var head="Date,Heure,Poids (lbs),Systolique,Diastolique,Dose (mg),Glycémie (mmol/L),Notes\n";
   var rows=sorted.map(function(e){
     var d=new Date(e.ts);
     return [d.toLocaleDateString("fr-CA"),
       d.toLocaleTimeString("fr-CA",{hour:"2-digit",minute:"2-digit"}),
       e.weight==null?"":e.weight, e.sys==null?"":e.sys, e.dia==null?"":e.dia,
-      e.dose==null?"":e.dose, csvField(e.note)].join(",");
+      e.dose==null?"":e.dose, e.glucose==null?"":e.glucose, csvField(e.note)].join(",");
   });
   var csvText = String.fromCharCode(65279)+head+rows.join("\n");
   if(CAP && CAP.Filesystem){
@@ -472,16 +478,19 @@ function render(){
   var chrono = asc.map(function(e){
       return {
         label:new Date(e.ts).toLocaleDateString("fr-CA",{day:"2-digit",month:"2-digit"}),
-        weight:e.weight, sys:e.sys, dia:e.dia
+        weight:e.weight, sys:e.sys, dia:e.dia, glucose:e.glucose
       };
     });
   var hasW = entries.some(function(e){return e.weight!=null;});
   var hasBP = entries.some(function(e){return e.sys!=null;});
+  var hasGlu = entries.some(function(e){return e.glucose!=null;});
   var weightEntries = asc.filter(function(e){return e.weight!=null;});
   var doseEntries = asc.filter(function(e){return e.dose!=null;});
+  var glucoseEntries = asc.filter(function(e){return e.glucose!=null;});
   var firstWeight = weightEntries.length? weightEntries[0] : null;
   var lastWeight = weightEntries.length? weightEntries[weightEntries.length-1] : null;
   var lastDose = doseEntries.length? doseEntries[doseEntries.length-1] : null;
+  var lastGlucose = glucoseEntries.length? glucoseEntries[glucoseEntries.length-1] : null;
   var goal = loadGoal();
   syncNativeReminder(lastDose);
 
@@ -535,6 +544,7 @@ function render(){
     }
   }
   if(lastDose){ statsHtml += '<div class="stat"><div class="k">Dose actuelle</div><div class="v" style="color:'+DOSE+'">'+lastDose.dose+' mg</div></div>'; }
+  if(lastGlucose){ statsHtml += '<div class="stat"><div class="k">Glycémie actuelle</div><div class="v" style="color:'+GLU+'">'+lastGlucose.glucose+' mmol/L</div></div>'; }
 
   var goalTxt = "";
   if(goal!=null && lastWeight){
@@ -563,6 +573,9 @@ function render(){
     ch+='<div class="chart-card"><h2 class="chart-title" style="color:'+SYS+'">Pression artérielle</h2>'+lineChart(chrono,"sys",SYS,"dia",DIA)+
         '<div style="font-size:12px;color:'+MUTE+';margin-top:6px;"><span style="color:'+SYS+'">■</span> Systolique &nbsp; <span style="color:'+DIA+'">■</span> Diastolique</div></div>';
   }
+  if(hasGlu){
+    ch+='<div class="chart-card"><h2 class="chart-title" style="color:'+GLU+'">Glycémie (mmol/L)</h2>'+lineChart(chrono,"glucose",GLU)+'</div>';
+  }
   $("charts").innerHTML=ch;
 
   // Count + export visibility
@@ -577,6 +590,7 @@ function render(){
     if(en.weight!=null) v+='<span><strong style="color:'+WEIGHT+'">'+en.weight+'</strong> <span class="unit">lbs</span></span>';
     if(en.sys!=null) v+='<span><strong style="color:'+SYS+'">'+en.sys+'/'+en.dia+'</strong> <span class="unit">mmHg</span></span>';
     if(en.dose!=null) v+='<span><strong style="color:'+DOSE+'">💉 '+en.dose+'</strong> <span class="unit">mg</span></span>';
+    if(en.glucose!=null) v+='<span><strong style="color:'+GLU+'">🩸 '+en.glucose+'</strong> <span class="unit">mmol/L</span></span>';
     var extra="";
     if(en.note){
       extra += '<div class="note-txt">'+escHtml(en.note)+'</div>';
