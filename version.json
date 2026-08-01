@@ -1,5 +1,5 @@
 {
-    "version":  "1.56",
+    "version":  "2.0",
     "apkUrl":  "https://github.com/ChewyQc/suivi-sante-app/releases/latest/download/SuiviSante.apk",
-    "notes":  "Correction de la verification des mises a jour (1.6 etait vu comme plus vieux que 1.55)"
+    "notes":  "Refonte de l\u0027interface : navigation par onglets, mode sombre et personnalisation de l\u0027accueil."
 }
