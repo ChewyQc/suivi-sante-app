@@ -1,4 +1,4 @@
-package com.epitome.suivisante;
+package com.chewyqc.suivisante;
 
 import com.getcapacitor.BridgeActivity;
 

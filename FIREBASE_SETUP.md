@@ -7,7 +7,7 @@
 
 ## 2. Enregistrer l'app Android
 1. Dans le projet, clique l'icône Android pour ajouter une app
-2. **Nom du package Android** : `com.epitome.suivisante`
+2. **Nom du package Android** : `com.chewyqc.suivisante`
 3. **Certificat de signature SHA-1** (débogage) : `9F:B9:9C:A6:AE:90:65:F5:E4:27:22:97:D3:A5:02:6F:FF:75:F0:E5`
 4. "Enregistrer l'application"
 5. **Télécharge le fichier `google-services.json`** — envoie-le-moi (glisse-le dans le chat)
