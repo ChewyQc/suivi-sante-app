@@ -296,7 +296,7 @@ var PALETTES = {
 var WEIGHT,SYS,DIA,DOSE,GLU,LINE,MUTE;
 var CAP = (window.Capacitor && window.Capacitor.Plugins) ? window.Capacitor.Plugins : null;
 var REMINDER_ID = 9001;
-var APP_VERSION = "3.4";
+var APP_VERSION = "3.5";
 var UPDATE_URL = "https://raw.githubusercontent.com/ChewyQc/suivi-sante-app/main/version.json";
 
 function getTheme(){
@@ -1009,6 +1009,9 @@ function render(){
   var bpEntries = asc.filter(function(e){return e.sys!=null;});
   var firstWeight = weightEntries.length? weightEntries[0] : null;
   var lastWeight = weightEntries.length? weightEntries[weightEntries.length-1] : null;
+  if(CAP && CAP.Preferences){
+    CAP.Preferences.set({key:"widget_weight", value: lastWeight? (lastWeight.weight+" lbs") : "--"}).catch(function(){});
+  }
   var lastDose = doseEntries.length? doseEntries[doseEntries.length-1] : null;
   var lastGlucose = glucoseEntries.length? glucoseEntries[glucoseEntries.length-1] : null;
   var goal = loadGoal();

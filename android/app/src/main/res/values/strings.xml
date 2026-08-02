@@ -4,4 +4,6 @@
     <string name="title_activity_main">Suivi Sante</string>
     <string name="package_name">com.chewyqc.suivisante</string>
     <string name="custom_url_scheme">com.chewyqc.suivisante</string>
+    <string name="widget_weight_label">POIDS ACTUEL</string>
+    <string name="widget_weight_description">Affiche ton dernier poids enregistré</string>
 </resources>
