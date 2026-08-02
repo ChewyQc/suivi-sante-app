@@ -1,5 +1,5 @@
 {
-    "version":  "3.3",
+    "version":  "3.4",
     "apkUrl":  "https://github.com/ChewyQc/suivi-sante-app/releases/latest/download/SuiviSante.apk",
-    "notes":  "Nouveau (beta) : connexion Google dans Reglages pour sauvegarder/restaurer tes donnees dans le cloud. Teste-la et dis-moi ce qui se passe - je n\u0027ai pas pu la tester sur un vrai telephone."
+    "notes":  "Correction : la connexion Google donnait \u0027aucun jeton recu\u0027 - le jeton etait lu au mauvais endroit dans la reponse. Reessaie la connexion."
 }
