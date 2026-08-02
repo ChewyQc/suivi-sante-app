@@ -1,5 +1,5 @@
 {
-    "version":  "3.5",
+    "version":  "3.6",
     "apkUrl":  "https://github.com/ChewyQc/suivi-sante-app/releases/latest/download/SuiviSante.apk",
-    "notes":  "Nouveau (beta) : widget d\u0027ecran d\u0027accueil affichant ton poids actuel. Ajoute-le en appuyant longtemps sur ton ecran d\u0027accueil \u003e Widgets \u003e Suivi Sante. Dis-moi si ca marche."
+    "notes":  "Nouvelle icone d\u0027app, sync automatique dans le cloud, lignes de seuil sur les graphiques, confirmation avant suppression, et estimation d\u0027A1c."
 }

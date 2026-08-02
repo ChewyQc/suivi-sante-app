@@ -296,7 +296,7 @@ var PALETTES = {
 var WEIGHT,SYS,DIA,DOSE,GLU,LINE,MUTE;
 var CAP = (window.Capacitor && window.Capacitor.Plugins) ? window.Capacitor.Plugins : null;
 var REMINDER_ID = 9001;
-var APP_VERSION = "3.5";
+var APP_VERSION = "3.6";
 var UPDATE_URL = "https://raw.githubusercontent.com/ChewyQc/suivi-sante-app/main/version.json";
 
 function getTheme(){
@@ -423,9 +423,19 @@ function load(){
   }catch(e){}
   return [];
 }
+var autoSyncTimer = null;
 function save(arr){
   entries = arr;
   try{ localStorage.setItem(KEY, JSON.stringify(arr)); }catch(e){}
+  scheduleAutoSync();
+}
+function scheduleAutoSync(){
+  var acct = loadGoogleAccount();
+  if(!acct || !window.fbSaveBackup) return;
+  if(autoSyncTimer) clearTimeout(autoSyncTimer);
+  autoSyncTimer = setTimeout(function(){
+    window.fbSaveBackup(acct.uid, buildBackupObj()).catch(function(){});
+  }, 2000);
 }
 function loadGoal(){
   try{
@@ -534,6 +544,7 @@ function enableReminders(){
   Notification.requestPermission().then(function(){ render(); });
 }
 function delEntry(id){
+  if(!confirm("Supprimer cette entrée ?")) return;
   save(entries.filter(function(e){return e.id!==id;}));
   if(editId===id) resetForm();
   render();
@@ -569,11 +580,12 @@ function hexToRgb(hex){
   return [parseInt(h.substring(0,2),16), parseInt(h.substring(2,4),16), parseInt(h.substring(4,6),16)];
 }
 
-function pdfLineChart(doc, x, y, w, h, data, key, colorHex, label2, color2Hex){
+function pdfLineChart(doc, x, y, w, h, data, key, colorHex, label2, color2Hex, thresholds){
   var padL=11, padR=4, padT=4, padB=7;
   var pts = data.filter(function(d){return d[key]!=null;});
   if(pts.length===0) return;
   var vals=[]; pts.forEach(function(d){ vals.push(d[key]); if(label2 && d[label2]!=null) vals.push(d[label2]); });
+  if(thresholds){ thresholds.forEach(function(t){ if(t.value!=null) vals.push(t.value); }); }
   var min=Math.min.apply(null,vals), max=Math.max.apply(null,vals);
   if(min===max){ min-=2; max+=2; }
   var pad=(max-min)*0.15; min-=pad; max+=pad;
@@ -596,6 +608,19 @@ function pdfLineChart(doc, x, y, w, h, data, key, colorHex, label2, color2Hex){
     if(i%step!==0 && i!==n-1) return;
     doc.text(String(d.label), X(i), y+h-1, {align:"center"});
   });
+
+  if(thresholds){
+    doc.setLineWidth(0.35);
+    thresholds.forEach(function(t){
+      if(t.value==null) return;
+      var rgb = hexToRgb(t.color);
+      doc.setDrawColor(rgb[0],rgb[1],rgb[2]);
+      var ty = Y(t.value);
+      doc.setLineDashPattern([1.2,1], 0);
+      doc.line(x+padL, ty, x+w-padR, ty);
+    });
+    doc.setLineDashPattern([], 0);
+  }
 
   function drawSeries(k, hex){
     var rgb = hexToRgb(hex);
@@ -630,6 +655,7 @@ function buildPdf(){
   var hasW = entries.some(function(e){return e.weight!=null;});
   var hasBP = entries.some(function(e){return e.sys!=null;});
   var hasGlu = entries.some(function(e){return e.glucose!=null;});
+  var targets = loadTargets();
   var pageW = doc.internal.pageSize.getWidth();
   var pageH = doc.internal.pageSize.getHeight();
   var margin = 14, y = 20;
@@ -650,8 +676,18 @@ function buildPdf(){
   // --- Graphiques ---
   var chartDefs = [];
   if(hasW){ chartDefs.push({title:"Poids (lbs)", color:"#3f6f6a", key:"weight"}); }
-  if(hasBP){ chartDefs.push({title:"Pression artérielle — Sys / Dia (mmHg)", color:"#c4543b", key:"sys", label2:"dia", color2:"#d99a4e"}); }
-  if(hasGlu){ chartDefs.push({title:"Glycémie (mmol/L)", color:"#2f8f9d", key:"glucose"}); }
+  if(hasBP){
+    var bpTh = [];
+    if(targets.sysMax!=null) bpTh.push({value:targets.sysMax, color:"#c4543b"});
+    if(targets.diaMax!=null) bpTh.push({value:targets.diaMax, color:"#d99a4e"});
+    chartDefs.push({title:"Pression artérielle — Sys / Dia (mmHg)", color:"#c4543b", key:"sys", label2:"dia", color2:"#d99a4e", thresholds:bpTh});
+  }
+  if(hasGlu){
+    var gluTh = [];
+    if(targets.gluMin!=null) gluTh.push({value:targets.gluMin, color:"#2f8f9d"});
+    if(targets.gluMax!=null) gluTh.push({value:targets.gluMax, color:"#c4543b"});
+    chartDefs.push({title:"Glycémie (mmol/L)", color:"#2f8f9d", key:"glucose", thresholds:gluTh});
+  }
 
   var chartH = 42, chartGap = 6;
   chartDefs.forEach(function(cd){
@@ -662,7 +698,7 @@ function buildPdf(){
     var rgb = hexToRgb(cd.color);
     doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(rgb[0],rgb[1],rgb[2]);
     doc.text(cd.title, margin+4, y+7);
-    pdfLineChart(doc, margin+2, y+9, pageW-2*margin-4, chartH-11, chrono, cd.key, cd.color, cd.label2, cd.color2);
+    pdfLineChart(doc, margin+2, y+9, pageW-2*margin-4, chartH-11, chrono, cd.key, cd.color, cd.label2, cd.color2, cd.thresholds);
     y += chartH + chartGap;
   });
   if(chartDefs.length){ doc.addPage(); y = 18; }
@@ -925,12 +961,13 @@ $("importBackupFile").onchange = function(){
 };
 
 // --- Graphique SVG simple ---
-function lineChart(data, key, color, label2, color2){
+function lineChart(data, key, color, label2, color2, thresholds){
   var W=680, H=200, padL=38, padR=12, padT=12, padB=24;
   var pts = data.filter(function(d){return d[key]!=null;});
   if(pts.length===0) return "";
   var vals=[];
   pts.forEach(function(d){ vals.push(d[key]); if(label2&&d[label2]!=null) vals.push(d[label2]); });
+  if(thresholds){ thresholds.forEach(function(t){ if(t.value!=null) vals.push(t.value); }); }
   var min=Math.min.apply(null,vals), max=Math.max.apply(null,vals);
   if(min===max){ min-=2; max+=2; }
   var pad=(max-min)*0.1; min-=pad; max+=pad;
@@ -960,8 +997,16 @@ function lineChart(data, key, color, label2, color2){
     if(n>8 && i%2!==0) return "";
     return '<text x="'+X(i).toFixed(1)+'" y="'+(H-6)+'" font-size="11" fill="'+MUTE+'" text-anchor="middle">'+d.label+'</text>';
   }).join("");
+  var thresholdSvg = "";
+  if(thresholds){
+    thresholds.forEach(function(t){
+      if(t.value==null) return;
+      var ty = Y(t.value);
+      thresholdSvg += '<line x1="'+padL+'" y1="'+ty.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+ty.toFixed(1)+'" stroke="'+t.color+'" stroke-width="1.5" stroke-dasharray="5,4" opacity="0.8"/>';
+    });
+  }
   var svg='<svg viewBox="0 0 '+W+' '+H+'" width="100%" height="200" preserveAspectRatio="xMidYMid meet">';
-  svg+=grid+labels;
+  svg+=grid+thresholdSvg+labels;
   svg+='<path d="'+path(key)+'" fill="none" stroke="'+color+'" stroke-width="2.5"/>'+dots(key,color);
   if(label2){ svg+='<path d="'+path(label2)+'" fill="none" stroke="'+color2+'" stroke-width="2.5"/>'+dots(label2,color2); }
   svg+='</svg>';
@@ -1085,6 +1130,10 @@ function render(){
   }
   if(fields.glucose && glu7!=null){ statsHtml += '<div class="stat"><div class="k">Glycémie moy. 7j</div><div class="v" style="color:'+GLU+'">'+glu7.toFixed(1)+' mmol/L</div></div>'; }
   if(fields.glucose && glu30!=null){ statsHtml += '<div class="stat"><div class="k">Glycémie moy. 30j</div><div class="v" style="color:'+GLU+'">'+glu30.toFixed(1)+' mmol/L</div></div>'; }
+  if(fields.glucose && glu30!=null){
+    var a1c = (glu30+2.59)/1.59;
+    statsHtml += '<div class="stat"><div class="k">A1c estimé</div><div class="v" style="color:'+GLU+'">'+a1c.toFixed(1)+'%</div></div>';
+  }
   if(fields.bp && bpSys7!=null){ statsHtml += '<div class="stat"><div class="k">Tension moy. 7j</div><div class="v" style="color:'+SYS+'">'+bpSys7.toFixed(0)+'/'+bpDia7.toFixed(0)+' mmHg</div></div>'; }
 
   var goalTxt = "";
@@ -1111,11 +1160,17 @@ function render(){
     ch+='<div class="chart-card"><h2 class="chart-title" style="color:'+WEIGHT+'">Poids (lbs)</h2>'+lineChart(chrono,"weight",WEIGHT)+'</div>';
   }
   if(hasBP){
-    ch+='<div class="chart-card"><h2 class="chart-title" style="color:'+SYS+'">Pression artérielle</h2>'+lineChart(chrono,"sys",SYS,"dia",DIA)+
+    var bpThresholds = [];
+    if(targets.sysMax!=null) bpThresholds.push({value:targets.sysMax, color:SYS});
+    if(targets.diaMax!=null) bpThresholds.push({value:targets.diaMax, color:DIA});
+    ch+='<div class="chart-card"><h2 class="chart-title" style="color:'+SYS+'">Pression artérielle</h2>'+lineChart(chrono,"sys",SYS,"dia",DIA,bpThresholds)+
         '<div style="font-size:12px;color:'+MUTE+';margin-top:6px;"><span style="color:'+SYS+'">■</span> Systolique &nbsp; <span style="color:'+DIA+'">■</span> Diastolique</div></div>';
   }
   if(hasGlu){
-    ch+='<div class="chart-card"><h2 class="chart-title" style="color:'+GLU+'">Glycémie (mmol/L)</h2>'+lineChart(chrono,"glucose",GLU)+'</div>';
+    var gluThresholds = [];
+    if(targets.gluMin!=null) gluThresholds.push({value:targets.gluMin, color:GLU});
+    if(targets.gluMax!=null) gluThresholds.push({value:targets.gluMax, color:SYS});
+    ch+='<div class="chart-card"><h2 class="chart-title" style="color:'+GLU+'">Glycémie (mmol/L)</h2>'+lineChart(chrono,"glucose",GLU,null,null,gluThresholds)+'</div>';
   }
   $("charts").innerHTML=ch;
 
