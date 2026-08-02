@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Suivi du poids et de la pression</title>
+<title>Suivi Santé</title>
 <meta name="theme-color" content="#16302b">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -71,6 +71,11 @@
   .empty{color:var(--mute);}
   .foot{margin-top:28px;font-size:12px;color:var(--mute);text-align:center;}
   .foot a{color:var(--weight);}
+  .targets-hint{margin:0;font-size:12px;color:var(--mute);}
+  .out-of-range{color:var(--sys)!important;}
+  .out-of-range .unit{color:var(--sys);opacity:.75;}
+  .search-row{display:flex;gap:10px;margin-bottom:10px;}
+  .search-row input{flex:1;min-width:0;}
   .banner{background:var(--dose);color:#fff;border-radius:14px;padding:13px 16px;margin-bottom:18px;font-size:14px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
   .banner button{background:rgba(255,255,255,.22);border:none;color:#fff;border-radius:8px;padding:7px 11px;font-size:13px;font-weight:600;}
   .summary .row{gap:20px;}
@@ -120,8 +125,8 @@
 <div class="wrap">
   <header style="margin-bottom:22px;">
     <div class="eyebrow">Journal de santé</div>
-    <h1>Suivi du poids et de la pression</h1>
-    <p class="sub">Entre une mesure : la date et l'heure sont enregistrées automatiquement.</p>
+    <h1>Suivi Santé</h1>
+    <p class="sub">Poids, tension, injections et glycémie — un seul endroit pour tout suivre.</p>
   </header>
 
   <main>
@@ -174,6 +179,13 @@
           <button class="csv" id="csv">CSV</button>
         </div>
       </div>
+      <div class="search-row no-print">
+        <input id="histSearch" type="text" placeholder="Rechercher dans les notes...">
+      </div>
+      <div class="search-row no-print">
+        <input id="histFrom" type="date" title="Du">
+        <input id="histTo" type="date" title="Au">
+      </div>
       <div id="list"></div>
     </section>
   </section>
@@ -189,6 +201,18 @@
       <label class="checkrow"><input type="checkbox" id="fld-bp"> Tension artérielle</label>
       <label class="checkrow"><input type="checkbox" id="fld-dose"> Dose d'injection</label>
       <label class="checkrow"><input type="checkbox" id="fld-glucose"> Glycémie</label>
+    </section>
+    <section class="card settings-card mt">
+      <h2>Zones cibles</h2>
+      <p class="targets-hint">Laisse vide pour désactiver une alerte. Les valeurs hors zone s'affichent en rouge.</p>
+      <div class="row mt">
+        <label class="fld"><span class="lab">Glycémie min (mmol/L)</span><input id="tgt-gluMin" inputmode="decimal" placeholder="4.0"></label>
+        <label class="fld"><span class="lab">Glycémie max (mmol/L)</span><input id="tgt-gluMax" inputmode="decimal" placeholder="7.0"></label>
+      </div>
+      <div class="row mt">
+        <label class="fld"><span class="lab">Systolique max</span><input id="tgt-sysMax" inputmode="numeric" placeholder="130"></label>
+        <label class="fld"><span class="lab">Diastolique max</span><input id="tgt-diaMax" inputmode="numeric" placeholder="85"></label>
+      </div>
     </section>
     <section class="card settings-card mt">
       <h2>Apparence</h2>
@@ -216,6 +240,7 @@ var GOAL_KEY = "suivi-sante-goal";
 var NOTIF_KEY = "suivi-sante-last-notif";
 var THEME_KEY = "suivi-sante-theme";
 var FIELDS_KEY = "suivi-sante-fields";
+var TARGETS_KEY = "suivi-sante-targets";
 var PALETTES = {
   light:{WEIGHT:"#3f6f6a",SYS:"#c4543b",DIA:"#d99a4e",DOSE:"#6d5b97",GLU:"#2f8f9d",LINE:"#dcd6c8",MUTE:"#7c8480"},
   dark:{WEIGHT:"#6fb3ac",SYS:"#e8785a",DIA:"#f0b56a",DOSE:"#a795d1",GLU:"#5cc4d4",LINE:"#33443f",MUTE:"#93a39c"}
@@ -223,7 +248,7 @@ var PALETTES = {
 var WEIGHT,SYS,DIA,DOSE,GLU,LINE,MUTE;
 var CAP = (window.Capacitor && window.Capacitor.Plugins) ? window.Capacitor.Plugins : null;
 var REMINDER_ID = 9001;
-var APP_VERSION = "2.02";
+var APP_VERSION = "3.0";
 var UPDATE_URL = "https://raw.githubusercontent.com/ChewyQc/suivi-sante-app/main/version.json";
 
 function getTheme(){
@@ -249,6 +274,26 @@ function loadFields(){
   return {weight:true,bp:true,dose:true,glucose:true};
 }
 function saveFields(f){ try{ localStorage.setItem(FIELDS_KEY, JSON.stringify(f)); }catch(e){} }
+
+function loadTargets(){
+  try{
+    var raw = localStorage.getItem(TARGETS_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return {gluMin:null, gluMax:null, sysMax:null, diaMax:null};
+}
+function saveTargets(t){ try{ localStorage.setItem(TARGETS_KEY, JSON.stringify(t)); }catch(e){} }
+function isOutOfRange(kind, en, targets){
+  if(kind==="glucose"){
+    if(en.glucose==null) return false;
+    return (targets.gluMin!=null && en.glucose<targets.gluMin) || (targets.gluMax!=null && en.glucose>targets.gluMax);
+  }
+  if(kind==="bp"){
+    if(en.sys==null) return false;
+    return (targets.sysMax!=null && en.sys>targets.sysMax) || (targets.diaMax!=null && en.dia>targets.diaMax);
+  }
+  return false;
+}
 function applyFieldVisibility(f){
   document.getElementById("row-weight").style.display = f.weight? "" : "none";
   document.getElementById("row-bp").style.display = f.bp? "" : "none";
@@ -546,7 +591,7 @@ function buildPdf(){
   doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(63,111,106);
   doc.text("JOURNAL DE SANTÉ", margin, y); y += 6;
   doc.setFont("helvetica","bold"); doc.setFontSize(18); doc.setTextColor(ink[0],ink[1],ink[2]);
-  doc.text("Suivi du poids et de la pression", margin, y); y += 6;
+  doc.text("Suivi Santé", margin, y); y += 6;
   doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.setTextColor(mute[0],mute[1],mute[2]);
   doc.text("Rapport généré le "+new Date().toLocaleString("fr-CA")+" — "+sorted.length+" entrée(s)", margin, y);
   y += 4;
@@ -688,12 +733,13 @@ function lineChart(data, key, color, label2, color2){
   return svg;
 }
 
-function entryRowHtml(en, filter, doseEntries){
+function entryRowHtml(en, filter, doseEntries, targets){
+  targets = targets || {};
   var v="";
   if(en.weight!=null && (!filter||filter.weight)) v+='<span><strong style="color:'+WEIGHT+'">'+en.weight+'</strong> <span class="unit">lbs</span></span>';
-  if(en.sys!=null && (!filter||filter.bp)) v+='<span><strong style="color:'+SYS+'">'+en.sys+'/'+en.dia+'</strong> <span class="unit">mmHg</span></span>';
+  if(en.sys!=null && (!filter||filter.bp)) v+='<span class="'+(isOutOfRange("bp",en,targets)?"out-of-range":"")+'"><strong style="color:'+SYS+'">'+(isOutOfRange("bp",en,targets)?"⚠ ":"")+en.sys+'/'+en.dia+'</strong> <span class="unit">mmHg</span></span>';
   if(en.dose!=null && (!filter||filter.dose)) v+='<span><strong style="color:'+DOSE+'">💉 '+en.dose+'</strong> <span class="unit">mg</span></span>';
-  if(en.glucose!=null && (!filter||filter.glucose)) v+='<span><strong style="color:'+GLU+'">🩸 '+en.glucose+'</strong> <span class="unit">mmol/L</span></span>';
+  if(en.glucose!=null && (!filter||filter.glucose)) v+='<span class="'+(isOutOfRange("glucose",en,targets)?"out-of-range":"")+'"><strong style="color:'+GLU+'">'+(isOutOfRange("glucose",en,targets)?"⚠ ":"🩸 ")+en.glucose+'</strong> <span class="unit">mmol/L</span></span>';
   var extra="";
   if(en.note){
     extra += '<div class="note-txt">'+escHtml(en.note)+'</div>';
@@ -725,12 +771,24 @@ function render(){
   var weightEntries = asc.filter(function(e){return e.weight!=null;});
   var doseEntries = asc.filter(function(e){return e.dose!=null;});
   var glucoseEntries = asc.filter(function(e){return e.glucose!=null;});
+  var bpEntries = asc.filter(function(e){return e.sys!=null;});
   var firstWeight = weightEntries.length? weightEntries[0] : null;
   var lastWeight = weightEntries.length? weightEntries[weightEntries.length-1] : null;
   var lastDose = doseEntries.length? doseEntries[doseEntries.length-1] : null;
   var lastGlucose = glucoseEntries.length? glucoseEntries[glucoseEntries.length-1] : null;
   var goal = loadGoal();
   var fields = loadFields();
+  var targets = loadTargets();
+  function avgInWindow(arr, days, key){
+    var cutoff = Date.now()-days*86400000;
+    var vals = arr.filter(function(e){return new Date(e.ts).getTime()>=cutoff;}).map(function(e){return e[key];});
+    if(!vals.length) return null;
+    return vals.reduce(function(a,b){return a+b;},0)/vals.length;
+  }
+  var glu7 = avgInWindow(glucoseEntries,7,"glucose");
+  var glu30 = avgInWindow(glucoseEntries,30,"glucose");
+  var bpSys7 = avgInWindow(bpEntries,7,"sys");
+  var bpDia7 = avgInWindow(bpEntries,7,"dia");
   syncNativeReminder(lastDose);
 
   // --- Bannière rappel d'injection ---
@@ -783,7 +841,13 @@ function render(){
     }
   }
   if(fields.dose && lastDose){ statsHtml += '<div class="stat"><div class="k">Dose actuelle</div><div class="v" style="color:'+DOSE+'">'+lastDose.dose+' mg</div></div>'; }
-  if(fields.glucose && lastGlucose){ statsHtml += '<div class="stat"><div class="k">Glycémie actuelle</div><div class="v" style="color:'+GLU+'">'+lastGlucose.glucose+' mmol/L</div></div>'; }
+  if(fields.glucose && lastGlucose){
+    var gluOOR = isOutOfRange("glucose", lastGlucose, targets);
+    statsHtml += '<div class="stat"><div class="k">Glycémie actuelle</div><div class="v'+(gluOOR?" out-of-range":"")+'" style="color:'+(gluOOR?SYS:GLU)+'">'+(gluOOR?"⚠ ":"")+lastGlucose.glucose+' mmol/L</div></div>';
+  }
+  if(fields.glucose && glu7!=null){ statsHtml += '<div class="stat"><div class="k">Glycémie moy. 7j</div><div class="v" style="color:'+GLU+'">'+glu7.toFixed(1)+' mmol/L</div></div>'; }
+  if(fields.glucose && glu30!=null){ statsHtml += '<div class="stat"><div class="k">Glycémie moy. 30j</div><div class="v" style="color:'+GLU+'">'+glu30.toFixed(1)+' mmol/L</div></div>'; }
+  if(fields.bp && bpSys7!=null){ statsHtml += '<div class="stat"><div class="k">Tension moy. 7j</div><div class="v" style="color:'+SYS+'">'+bpSys7.toFixed(0)+'/'+bpDia7.toFixed(0)+' mmHg</div></div>'; }
 
   var goalTxt = "";
   if(goal!=null && lastWeight){
@@ -821,17 +885,29 @@ function render(){
   $("count").textContent = entries.length>0 ? "("+entries.length+")" : "";
   $("exp").style.display = entries.length>0 ? "flex" : "none";
 
-  // List (historique complet, sans filtre)
+  // List (historique complet, filtré par la recherche/dates si actif)
+  var histSearch = $("histSearch") ? $("histSearch").value.trim().toLowerCase() : "";
+  var histFrom = $("histFrom") ? $("histFrom").value : "";
+  var histTo = $("histTo") ? $("histTo").value : "";
+  var filteredSorted = sorted.filter(function(en){
+    if(histSearch){
+      var hay = ((en.note||"")+" "+fmtDate(en.ts)).toLowerCase();
+      if(hay.indexOf(histSearch)===-1) return false;
+    }
+    if(histFrom && en.ts < new Date(histFrom+"T00:00:00").toISOString()) return false;
+    if(histTo && en.ts > new Date(histTo+"T23:59:59").toISOString()) return false;
+    return true;
+  });
   var list=$("list");
-  list.innerHTML = sorted.length===0
-    ? '<p class="empty">Aucune mesure pour l\'instant.</p>'
-    : sorted.map(function(en){ return entryRowHtml(en, null, doseEntries); }).join("");
+  list.innerHTML = filteredSorted.length===0
+    ? (sorted.length===0 ? '<p class="empty">Aucune mesure pour l\'instant.</p>' : '<p class="empty">Aucun résultat pour cette recherche.</p>')
+    : filteredSorted.map(function(en){ return entryRowHtml(en, null, doseEntries, targets); }).join("");
 
   // Mini-liste (accueil, filtrée selon les réglages)
   var miniList=$("miniList");
   miniList.innerHTML = sorted.length===0
     ? '<p class="empty">Aucune mesure pour l\'instant.</p>'
-    : sorted.slice(0,5).map(function(en){ return entryRowHtml(en, fields, doseEntries); }).join("");
+    : sorted.slice(0,5).map(function(en){ return entryRowHtml(en, fields, doseEntries, targets); }).join("");
 }
 
 window.editEntry = editEntry;
@@ -861,6 +937,27 @@ applyFieldVisibility(fieldsNow);
     applyFieldVisibility(f);
     render();
   });
+});
+
+// --- Réglages : zones cibles ---
+var targetsNow = loadTargets();
+$("tgt-gluMin").value = targetsNow.gluMin!=null? targetsNow.gluMin : "";
+$("tgt-gluMax").value = targetsNow.gluMax!=null? targetsNow.gluMax : "";
+$("tgt-sysMax").value = targetsNow.sysMax!=null? targetsNow.sysMax : "";
+$("tgt-diaMax").value = targetsNow.diaMax!=null? targetsNow.diaMax : "";
+[["tgt-gluMin","gluMin"],["tgt-gluMax","gluMax"],["tgt-sysMax","sysMax"],["tgt-diaMax","diaMax"]].forEach(function(pair){
+  $(pair[0]).addEventListener("change", function(){
+    var t = loadTargets();
+    var v = this.value.trim();
+    t[pair[1]] = v===""? null : parseFloat(v);
+    saveTargets(t);
+    render();
+  });
+});
+
+// --- Historique : recherche et filtre par date ---
+["histSearch","histFrom","histTo"].forEach(function(id){
+  $(id).addEventListener("input", render);
 });
 
 // --- Réglages : mode sombre ---
