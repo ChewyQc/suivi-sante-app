@@ -1,5 +1,5 @@
 {
-    "version":  "3.1",
+    "version":  "3.2",
     "apkUrl":  "https://github.com/ChewyQc/suivi-sante-app/releases/latest/download/SuiviSante.apk",
-    "notes":  "IMPORTANT: nouvel identifiant d\u0027app. Installe cette version PUIS desinstalle l\u0027ancienne Suivi Sante (ton historique n\u0027est pas transfere automatiquement - exporte en PDF/CSV avant si tu veux le garder)."
+    "notes":  "Nouveau : sauvegarde/restauration dans Reglages. Utile pour recuperer tes donnees apres le changement d\u0027app de la 3.1 (importe le CSV exporte depuis l\u0027ancienne app, ou un fichier JSON)."
 }

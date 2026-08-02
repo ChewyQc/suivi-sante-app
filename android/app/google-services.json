@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "760652914435",
+    "project_id": "suivi-sante-52146",
+    "storage_bucket": "suivi-sante-52146.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:760652914435:android:85e518616b0c0e67c25336",
+        "android_client_info": {
+          "package_name": "com.chewyqc.suivisante"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyChGfkkZfcsOL-FolTooTVHmCulrEfCH2U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

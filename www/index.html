@@ -196,6 +196,15 @@
 
   <section id="page-settings" class="tabpanel">
     <section class="card settings-card">
+      <h2>Sauvegarde et restauration</h2>
+      <p class="targets-hint">Exporte une copie complète de tes données, ou importe une sauvegarde JSON ou un CSV exporté depuis Historique (utile après un changement d'app).</p>
+      <div class="mt" style="display:flex;flex-direction:column;gap:10px;">
+        <button id="exportBackup" class="ghost" style="width:100%;">Exporter une sauvegarde (JSON)</button>
+        <label class="ghost" for="importBackupFile" style="width:100%;text-align:center;cursor:pointer;display:block;">Importer une sauvegarde</label>
+        <input type="file" id="importBackupFile" accept=".json,.csv" style="display:none;">
+      </div>
+    </section>
+    <section class="card settings-card mt">
       <h2>Données affichées sur l'accueil</h2>
       <label class="checkrow"><input type="checkbox" id="fld-weight"> Poids</label>
       <label class="checkrow"><input type="checkbox" id="fld-bp"> Tension artérielle</label>
@@ -248,7 +257,7 @@ var PALETTES = {
 var WEIGHT,SYS,DIA,DOSE,GLU,LINE,MUTE;
 var CAP = (window.Capacitor && window.Capacitor.Plugins) ? window.Capacitor.Plugins : null;
 var REMINDER_ID = 9001;
-var APP_VERSION = "3.1";
+var APP_VERSION = "3.2";
 var UPDATE_URL = "https://raw.githubusercontent.com/ChewyQc/suivi-sante-app/main/version.json";
 
 function getTheme(){
@@ -687,6 +696,118 @@ $("csv").onclick=function(){
   var blob=new Blob([csvText],{type:"text/csv"});
   var url=URL.createObjectURL(blob), a=document.createElement("a");
   a.href=url; a.download="suivi-sante.csv"; a.click(); URL.revokeObjectURL(url);
+};
+
+// --- Sauvegarde / restauration ---
+function buildBackupJson(){
+  return JSON.stringify({
+    app:"suivi-sante", version:1, exportedAt:new Date().toISOString(),
+    entries:entries, fields:loadFields(), targets:loadTargets(), goal:loadGoal()
+  }, null, 2);
+}
+$("exportBackup").onclick = function(){
+  var text = buildBackupJson();
+  var fileName = "suivi-sante-sauvegarde-"+new Date().toISOString().slice(0,10)+".json";
+  if(CAP && CAP.Filesystem){
+    saveFileNative(fileName, toB64Utf8(text));
+    return;
+  }
+  var blob = new Blob([text],{type:"application/json"});
+  var url = URL.createObjectURL(blob), a = document.createElement("a");
+  a.href=url; a.download=fileName; a.click(); URL.revokeObjectURL(url);
+};
+
+function parseCsvText(text){
+  if(text.charCodeAt(0)===0xFEFF) text = text.slice(1);
+  var rows=[], row=[], field="", inQuotes=false;
+  for(var i=0;i<text.length;i++){
+    var c = text[i];
+    if(inQuotes){
+      if(c==='"'){
+        if(text[i+1]==='"'){ field+='"'; i++; } else { inQuotes=false; }
+      } else { field+=c; }
+    }else{
+      if(c==='"'){ inQuotes=true; }
+      else if(c===','){ row.push(field); field=""; }
+      else if(c==='\n'){ row.push(field); rows.push(row); row=[]; field=""; }
+      else if(c==='\r'){ /* skip */ }
+      else { field+=c; }
+    }
+  }
+  if(field.length || row.length){ row.push(field); rows.push(row); }
+  return rows.filter(function(r){ return r.length>1 || r[0]!==""; });
+}
+function csvToEntries(text){
+  var rows = parseCsvText(text);
+  if(!rows.length) return [];
+  var header = rows[0].map(function(h){ return h.trim(); });
+  var idx = {
+    date: header.indexOf("Date"), heure: header.indexOf("Heure"),
+    weight: header.indexOf("Poids (lbs)"), sys: header.indexOf("Systolique"),
+    dia: header.indexOf("Diastolique"), dose: header.indexOf("Dose (mg)"),
+    glucose: header.indexOf("Glycémie (mmol/L)"), note: header.indexOf("Notes")
+  };
+  if(idx.date===-1 || idx.heure===-1){ throw new Error("Colonnes Date/Heure introuvables dans ce CSV."); }
+  function hashRow(s){
+    var h=0;
+    for(var i=0;i<s.length;i++){ h=((h<<5)-h+s.charCodeAt(i))|0; }
+    return h;
+  }
+  return rows.slice(1).map(function(r){
+    var timeParts = (r[idx.heure]||"").match(/(\d+)\D+(\d+)/);
+    var hh = timeParts? timeParts[1] : "00", mm = timeParts? timeParts[2] : "00";
+    var ts = new Date(r[idx.date]+"T"+hh+":"+mm+":00").toISOString();
+    var num = function(v){ return v==null||v===""? null : parseFloat(v); };
+    var note = (idx.note>-1 && r[idx.note])? r[idx.note] : null;
+    var weight=num(r[idx.weight]), sys=num(r[idx.sys]), dia=num(r[idx.dia]), dose=num(r[idx.dose]), glucose=num(r[idx.glucose]);
+    // id deterministe: reimporter le meme CSV met a jour les memes entrees au lieu de les dupliquer
+    var id = hashRow(ts+"|"+weight+"|"+sys+"|"+dia+"|"+dose+"|"+glucose+"|"+(note||""));
+    return {id:id, ts:ts, weight:weight, sys:sys, dia:dia, dose:dose, glucose:glucose, note:note};
+  }).filter(function(e){ return !isNaN(new Date(e.ts).getTime()); });
+}
+function mergeEntries(newEntries){
+  var byId = {};
+  entries.forEach(function(e){ byId[e.id]=e; });
+  newEntries.forEach(function(e){ byId[e.id]=e; });
+  var merged = Object.keys(byId).map(function(k){ return byId[k]; });
+  save(merged);
+}
+$("importBackupFile").onchange = function(){
+  var file = this.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(){
+    try{
+      var text = reader.result;
+      var isJson = /\.json$/i.test(file.name) || text.trim().charAt(0)==="{";
+      var newEntries, extra="";
+      if(isJson){
+        var data = JSON.parse(text);
+        newEntries = data.entries || [];
+        if(confirm("Importer "+newEntries.length+" entrée(s) et restaurer aussi les réglages (zones cibles, données affichées) ?")){
+          if(data.fields) saveFields(data.fields);
+          if(data.targets) saveTargets(data.targets);
+          if(data.goal!=null) saveGoal(data.goal);
+        }
+      }else{
+        newEntries = csvToEntries(text);
+      }
+      if(!newEntries.length){ alert("Aucune entrée trouvée dans ce fichier."); return; }
+      if(!confirm(newEntries.length+" entrée(s) trouvée(s). Les importer ? (les entrées déjà présentes ne seront pas dupliquées)")) return;
+      mergeEntries(newEntries);
+      fieldsNow = loadFields();
+      $("fld-weight").checked = !!fieldsNow.weight; $("fld-bp").checked = !!fieldsNow.bp;
+      $("fld-dose").checked = !!fieldsNow.dose; $("fld-glucose").checked = !!fieldsNow.glucose;
+      applyFieldVisibility(fieldsNow);
+      render();
+      switchTab("history");
+      alert("Importation terminée : "+entries.length+" entrée(s) au total.");
+    }catch(err){
+      alert("Impossible de lire ce fichier : "+(err && err.message? err.message : err));
+    }
+    $("importBackupFile").value = "";
+  };
+  reader.readAsText(file, "UTF-8");
 };
 
 // --- Graphique SVG simple ---
