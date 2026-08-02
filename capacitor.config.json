@@ -1,5 +1,11 @@
 {
   "appId": "com.chewyqc.suivisante",
   "appName": "Suivi Sante",
-  "webDir": "www"
+  "webDir": "www",
+  "plugins": {
+    "FirebaseAuthentication": {
+      "skipNativeAuth": true,
+      "providers": ["google.com"]
+    }
+  }
 }

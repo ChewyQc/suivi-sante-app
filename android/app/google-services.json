@@ -12,7 +12,20 @@
           "package_name": "com.chewyqc.suivisante"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "760652914435-kkrh1b215hsh90o9ggi7sfmhctfmgh1b.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.chewyqc.suivisante",
+            "certificate_hash": "9fb99ca6ae9065f5e4272297d3a5026fff75f0e5"
+          }
+        },
+        {
+          "client_id": "760652914435-vbh19h7ea1q2nup8jcom1t10n823bai7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyChGfkkZfcsOL-FolTooTVHmCulrEfCH2U"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "760652914435-vbh19h7ea1q2nup8jcom1t10n823bai7.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

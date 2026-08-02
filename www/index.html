@@ -196,6 +196,16 @@
 
   <section id="page-settings" class="tabpanel">
     <section class="card settings-card">
+      <h2>Compte Google</h2>
+      <p id="googleAccountInfo" class="targets-hint">Non connecté.</p>
+      <div class="mt" style="display:flex;flex-direction:column;gap:10px;">
+        <button id="googleSignIn" class="ghost" style="width:100%;">Se connecter avec Google</button>
+        <button id="googleSignOut" class="ghost" style="width:100%;display:none;">Se déconnecter</button>
+        <button id="cloudBackupNow" class="ghost" style="width:100%;display:none;">Sauvegarder dans le cloud</button>
+        <button id="cloudRestore" class="ghost" style="width:100%;display:none;">Restaurer depuis le cloud</button>
+      </div>
+    </section>
+    <section class="card settings-card mt">
       <h2>Sauvegarde et restauration</h2>
       <p class="targets-hint">Exporte une copie complète de tes données, ou importe une sauvegarde JSON ou un CSV exporté depuis Historique (utile après un changement d'app).</p>
       <div class="mt" style="display:flex;flex-direction:column;gap:10px;">
@@ -242,6 +252,35 @@
 </div>
 
 <script src="jspdf.umd.min.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithCredential, signOut } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js";
+
+var firebaseConfig = {
+  apiKey: "AIzaSyA2A-KzAIxMIrfIFpMgUJQHbupX0azVRQk",
+  authDomain: "suivi-sante-52146.firebaseapp.com",
+  projectId: "suivi-sante-52146",
+  storageBucket: "suivi-sante-52146.firebasestorage.app",
+  messagingSenderId: "760652914435",
+  appId: "1:760652914435:web:96816a556c5e2943c25336"
+};
+var fbApp = initializeApp(firebaseConfig);
+var fbAuth = getAuth(fbApp);
+var fbDb = getFirestore(fbApp);
+
+window.fbSignInWithIdToken = function(idToken){
+  var credential = GoogleAuthProvider.credential(idToken);
+  return signInWithCredential(fbAuth, credential).then(function(res){ return res.user; });
+};
+window.fbSignOut = function(){ return signOut(fbAuth); };
+window.fbCurrentUser = function(){ return fbAuth.currentUser; };
+window.fbSaveBackup = function(uid, dataObj){ return setDoc(doc(fbDb, "backups", uid), dataObj); };
+window.fbLoadBackup = function(uid){
+  return getDoc(doc(fbDb, "backups", uid)).then(function(snap){ return snap.exists() ? snap.data() : null; });
+};
+window.dispatchEvent(new Event("firebase-ready"));
+</script>
 <script>
 "use strict";
 var KEY = "suivi-sante-entries";
@@ -257,7 +296,7 @@ var PALETTES = {
 var WEIGHT,SYS,DIA,DOSE,GLU,LINE,MUTE;
 var CAP = (window.Capacitor && window.Capacitor.Plugins) ? window.Capacitor.Plugins : null;
 var REMINDER_ID = 9001;
-var APP_VERSION = "3.2";
+var APP_VERSION = "3.3";
 var UPDATE_URL = "https://raw.githubusercontent.com/ChewyQc/suivi-sante-app/main/version.json";
 
 function getTheme(){
@@ -699,12 +738,99 @@ $("csv").onclick=function(){
 };
 
 // --- Sauvegarde / restauration ---
-function buildBackupJson(){
-  return JSON.stringify({
+function buildBackupObj(){
+  return {
     app:"suivi-sante", version:1, exportedAt:new Date().toISOString(),
     entries:entries, fields:loadFields(), targets:loadTargets(), goal:loadGoal()
-  }, null, 2);
+  };
 }
+function buildBackupJson(){ return JSON.stringify(buildBackupObj(), null, 2); }
+
+function applyRestoredData(data){
+  var newEntries = data.entries || [];
+  mergeEntries(newEntries);
+  if(data.fields) saveFields(data.fields);
+  if(data.targets) saveTargets(data.targets);
+  if(data.goal!=null) saveGoal(data.goal);
+  var f = loadFields();
+  $("fld-weight").checked=!!f.weight; $("fld-bp").checked=!!f.bp;
+  $("fld-dose").checked=!!f.dose; $("fld-glucose").checked=!!f.glucose;
+  applyFieldVisibility(f);
+  render();
+  return newEntries.length;
+}
+
+// --- Compte Google / sauvegarde cloud ---
+var GOOGLE_ACCOUNT_KEY = "suivi-sante-google-account";
+function loadGoogleAccount(){
+  try{ var raw = localStorage.getItem(GOOGLE_ACCOUNT_KEY); return raw? JSON.parse(raw) : null; }catch(e){ return null; }
+}
+function saveGoogleAccount(acct){ try{ localStorage.setItem(GOOGLE_ACCOUNT_KEY, JSON.stringify(acct)); }catch(e){} }
+function clearGoogleAccount(){ try{ localStorage.removeItem(GOOGLE_ACCOUNT_KEY); }catch(e){} }
+function renderAccountUI(){
+  var acct = loadGoogleAccount();
+  $("googleAccountInfo").textContent = acct ? "Connecté comme "+acct.email : "Non connecté.";
+  $("googleSignIn").style.display = acct ? "none" : "block";
+  $("googleSignOut").style.display = acct ? "block" : "none";
+  $("cloudBackupNow").style.display = acct ? "block" : "none";
+  $("cloudRestore").style.display = acct ? "block" : "none";
+}
+$("googleSignIn").onclick = function(){
+  if(!CAP || !CAP.FirebaseAuthentication){
+    alert("La connexion Google fonctionne seulement dans l'app installée sur le téléphone, pas dans un navigateur.");
+    return;
+  }
+  if(!window.fbSignInWithIdToken){
+    alert("Ça charge encore, réessaie dans quelques secondes.");
+    return;
+  }
+  CAP.FirebaseAuthentication.signInWithGoogle().then(function(result){
+    var idToken = result && result.user && result.user.idToken;
+    if(!idToken){ throw new Error("Aucun jeton reçu de Google."); }
+    return window.fbSignInWithIdToken(idToken);
+  }).then(function(fbUser){
+    saveGoogleAccount({uid:fbUser.uid, email:fbUser.email});
+    renderAccountUI();
+    if(confirm("Connecté comme "+fbUser.email+".\n\nRestaurer tes données depuis le cloud maintenant ?")){
+      $("cloudRestore").onclick();
+    }
+  }).catch(function(err){
+    alert("Connexion échouée : "+(err && err.message? err.message : err));
+  });
+};
+$("googleSignOut").onclick = function(){
+  var p = (CAP && CAP.FirebaseAuthentication) ? CAP.FirebaseAuthentication.signOut() : Promise.resolve();
+  p.catch(function(){}).then(function(){
+    return window.fbSignOut ? window.fbSignOut().catch(function(){}) : null;
+  }).then(function(){
+    clearGoogleAccount();
+    renderAccountUI();
+  });
+};
+$("cloudBackupNow").onclick = function(){
+  var acct = loadGoogleAccount();
+  if(!acct || !window.fbSaveBackup){ alert("Connecte-toi avec Google d'abord."); return; }
+  window.fbSaveBackup(acct.uid, buildBackupObj()).then(function(){
+    alert("Sauvegarde envoyée dans le cloud.");
+  }).catch(function(err){
+    alert("Échec de la sauvegarde : "+(err && err.message? err.message : err));
+  });
+};
+$("cloudRestore").onclick = function(){
+  var acct = loadGoogleAccount();
+  if(!acct || !window.fbLoadBackup){ alert("Connecte-toi avec Google d'abord."); return; }
+  window.fbLoadBackup(acct.uid).then(function(data){
+    if(!data){ alert("Aucune sauvegarde trouvée dans le cloud pour ce compte."); return; }
+    var count = (data.entries||[]).length;
+    if(!confirm(count+" entrée(s) trouvée(s) dans le cloud. Les importer ?")) return;
+    applyRestoredData(data);
+    switchTab("history");
+    alert("Restauration terminée : "+entries.length+" entrée(s) au total.");
+  }).catch(function(err){
+    alert("Échec de la restauration : "+(err && err.message? err.message : err));
+  });
+};
+renderAccountUI();
 $("exportBackup").onclick = function(){
   var text = buildBackupJson();
   var fileName = "suivi-sante-sauvegarde-"+new Date().toISOString().slice(0,10)+".json";
@@ -780,26 +906,14 @@ $("importBackupFile").onchange = function(){
     try{
       var text = reader.result;
       var isJson = /\.json$/i.test(file.name) || text.trim().charAt(0)==="{";
-      var newEntries, extra="";
-      if(isJson){
-        var data = JSON.parse(text);
-        newEntries = data.entries || [];
-        if(confirm("Importer "+newEntries.length+" entrée(s) et restaurer aussi les réglages (zones cibles, données affichées) ?")){
-          if(data.fields) saveFields(data.fields);
-          if(data.targets) saveTargets(data.targets);
-          if(data.goal!=null) saveGoal(data.goal);
-        }
-      }else{
-        newEntries = csvToEntries(text);
-      }
+      var data = isJson ? JSON.parse(text) : {entries: csvToEntries(text)};
+      var newEntries = data.entries || [];
       if(!newEntries.length){ alert("Aucune entrée trouvée dans ce fichier."); return; }
-      if(!confirm(newEntries.length+" entrée(s) trouvée(s). Les importer ? (les entrées déjà présentes ne seront pas dupliquées)")) return;
-      mergeEntries(newEntries);
-      fieldsNow = loadFields();
-      $("fld-weight").checked = !!fieldsNow.weight; $("fld-bp").checked = !!fieldsNow.bp;
-      $("fld-dose").checked = !!fieldsNow.dose; $("fld-glucose").checked = !!fieldsNow.glucose;
-      applyFieldVisibility(fieldsNow);
-      render();
+      var msg = newEntries.length+" entrée(s) trouvée(s)"+
+        (isJson && (data.fields||data.targets)? " (réglages inclus)" : "")+
+        ". Les importer ? (les entrées déjà présentes ne seront pas dupliquées)";
+      if(!confirm(msg)) return;
+      applyRestoredData(data);
       switchTab("history");
       alert("Importation terminée : "+entries.length+" entrée(s) au total.");
     }catch(err){
