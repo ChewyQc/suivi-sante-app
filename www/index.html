@@ -196,6 +196,7 @@
 
   <section id="page-charts" class="tabpanel">
     <section id="charts" class="block" style="margin-top:0;"></section>
+    <section id="bebe-charts" class="block" style="margin-top:0;display:none;"></section>
   </section>
 
   <section id="page-bebe" class="tabpanel">
@@ -354,7 +355,7 @@ var PALETTES = {
 var WEIGHT,SYS,DIA,DOSE,GLU,LINE,MUTE;
 var CAP = (window.Capacitor && window.Capacitor.Plugins) ? window.Capacitor.Plugins : null;
 var REMINDER_ID = 9001;
-var APP_VERSION = "3.7";
+var APP_VERSION = "3.8";
 var UPDATE_URL = "https://raw.githubusercontent.com/ChewyQc/suivi-sante-app/main/version.json";
 
 function getTheme(){
@@ -787,6 +788,32 @@ function renderBebe(){
   }
   $("bebe-summary").innerHTML = statsHtml? '<div class="row">'+statsHtml+'</div>' : "";
   $("bebe-summary").style.display = statsHtml? "block":"none";
+
+  var weightChrono = bebeEntries.filter(function(e){return e.type==="poids";})
+    .sort(function(a,b){return new Date(a.ts)-new Date(b.ts);})
+    .map(function(e){ return {label:fmtDateShort(e.ts), weight:e.weight}; });
+
+  var mlByDay = {}, dayKeys = [];
+  bebeEntries.filter(function(e){return e.type==="biberon";})
+    .sort(function(a,b){return new Date(a.ts)-new Date(b.ts);})
+    .forEach(function(e){
+      var d = new Date(e.ts), key = d.toDateString();
+      if(!(key in mlByDay)){ mlByDay[key] = {ml:0, label:fmtDateShort(e.ts)}; dayKeys.push(key); }
+      mlByDay[key].ml += (e.ml||0);
+    });
+  var mlChrono = dayKeys.map(function(k){ return {label:mlByDay[k].label, ml:mlByDay[k].ml}; });
+
+  var chBebe = "";
+  if(isBebeEnabled()){
+    if(weightChrono.length){
+      chBebe += '<div class="chart-card"><h2 class="chart-title" style="color:'+WEIGHT+'">Poids bébé (lbs)</h2>'+lineChart(weightChrono,"weight",WEIGHT)+'</div>';
+    }
+    if(mlChrono.length){
+      chBebe += '<div class="chart-card"><h2 class="chart-title" style="color:'+DOSE+'">Biberons (mL/jour)</h2>'+lineChart(mlChrono,"ml",DOSE)+'</div>';
+    }
+  }
+  $("bebe-charts").innerHTML = chBebe;
+  $("bebe-charts").style.display = chBebe? "block":"none";
 
   $("bebe-list").innerHTML = sorted.length===0
     ? '<p class="empty">Aucune entrée pour l\'instant.</p>'
@@ -1522,6 +1549,7 @@ applyBebeVisibility(bebeEnabledNow);
 $("bebeModeToggle").addEventListener("change", function(){
   setBebeEnabled(this.checked);
   applyBebeVisibility(this.checked);
+  renderBebe();
 });
 
 $("appver").textContent = APP_VERSION;
