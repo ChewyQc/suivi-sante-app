@@ -1,5 +1,5 @@
 {
-    "version":  "3.6",
+    "version":  "3.7",
     "apkUrl":  "https://github.com/ChewyQc/suivi-sante-app/releases/latest/download/SuiviSante.apk",
-    "notes":  "Nouvelle icone d\u0027app, sync automatique dans le cloud, lignes de seuil sur les graphiques, confirmation avant suppression, et estimation d\u0027A1c."
+    "notes":  "Nouvel onglet Bebe (masque par defaut, activable dans Reglages) : poids en lbs, biberons en mL, couches pipi/caca, sommeil avec duree, et resume de la journee."
 }
