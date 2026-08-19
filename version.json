@@ -1,5 +1,5 @@
 {
-    "version":  "3.8",
+    "version":  "3.9",
     "apkUrl":  "https://github.com/ChewyQc/suivi-sante-app/releases/latest/download/SuiviSante.apk",
-    "notes":  "Nouveaux graphiques pour le bebe dans l'onglet Graphiques : poids et biberons (mL/jour)."
+    "notes":  "Onglet Bebe : ordre des types reorganise en Biberon, Couche, Sommeil, Poids."
 }
