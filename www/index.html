@@ -204,16 +204,13 @@
 
     <section class="card no-print">
       <div class="type-pills" id="bebeTypePills">
-        <button type="button" class="type-pill active" data-type="poids">⚖️ Poids</button>
-        <button type="button" class="type-pill" data-type="biberon">🍼 Biberon</button>
+        <button type="button" class="type-pill active" data-type="biberon">🍼 Biberon</button>
         <button type="button" class="type-pill" data-type="couche">🧷 Couche</button>
         <button type="button" class="type-pill" data-type="sommeil">😴 Sommeil</button>
+        <button type="button" class="type-pill" data-type="poids">⚖️ Poids</button>
       </div>
 
-      <div class="row mt" id="bebe-row-poids">
-        <label class="fld"><span class="lab">Poids (lbs)</span><input id="bebe-weight" inputmode="decimal" placeholder="14.2"></label>
-      </div>
-      <div class="row mt" id="bebe-row-biberon" style="display:none;">
+      <div class="row mt" id="bebe-row-biberon">
         <label class="fld"><span class="lab">Quantité (mL)</span><input id="bebe-ml" inputmode="numeric" placeholder="120"></label>
       </div>
       <div class="row mt" id="bebe-row-couche" style="display:none;">
@@ -223,6 +220,9 @@
       <div class="row mt" id="bebe-row-sommeil" style="display:none;">
         <label class="fld"><span class="lab">Début</span><input id="bebe-sleep-start" type="datetime-local"></label>
         <label class="fld"><span class="lab">Fin (optionnel)</span><input id="bebe-sleep-end" type="datetime-local"></label>
+      </div>
+      <div class="row mt" id="bebe-row-poids" style="display:none;">
+        <label class="fld"><span class="lab">Poids (lbs)</span><input id="bebe-weight" inputmode="decimal" placeholder="14.2"></label>
       </div>
 
       <div class="mt" id="bebe-row-when">
@@ -355,7 +355,7 @@ var PALETTES = {
 var WEIGHT,SYS,DIA,DOSE,GLU,LINE,MUTE;
 var CAP = (window.Capacitor && window.Capacitor.Plugins) ? window.Capacitor.Plugins : null;
 var REMINDER_ID = 9001;
-var APP_VERSION = "3.8";
+var APP_VERSION = "3.9";
 var UPDATE_URL = "https://raw.githubusercontent.com/ChewyQc/suivi-sante-app/main/version.json";
 
 function getTheme(){
@@ -642,7 +642,7 @@ function delEntry(id){
 
 // --- Bébé ---
 var bebeEditId = null;
-var bebeType = "poids";
+var bebeType = "biberon";
 function selectBebeType(type){
   bebeType = type;
   document.querySelectorAll("#bebeTypePills .type-pill").forEach(function(el){
@@ -666,7 +666,7 @@ function resetBebeForm(){
   $("bebe-weight").value=""; $("bebe-ml").value=""; $("bebe-pee").checked=false; $("bebe-poop").checked=false;
   $("bebe-sleep-start").value=""; $("bebe-sleep-end").value=""; $("bebe-note").value="";
   $("bebe-when").value=nowLocalInput(); bebeEditId=null;
-  selectBebeType("poids");
+  selectBebeType("biberon");
   $("bebe-save").textContent="Enregistrer";
   $("bebe-cancel").style.display="none";
   showBebeErr(null);
