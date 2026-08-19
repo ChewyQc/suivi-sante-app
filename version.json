@@ -1,5 +1,5 @@
 {
-    "version":  "3.9",
+    "version":  "3.91",
     "apkUrl":  "https://github.com/ChewyQc/suivi-sante-app/releases/latest/download/SuiviSante.apk",
-    "notes":  "Onglet Bebe : ordre des types reorganise en Biberon, Couche, Sommeil, Poids."
+    "notes":  "Graphique Biberons : switch mL/jour ou mL/biberon en en-tete."
 }
