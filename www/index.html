@@ -113,6 +113,10 @@
     background:#fff;border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .2s ease;}
   .switch input:checked + .slider{background:var(--weight);}
   .switch input:checked + .slider:before{transform:translateX(18px);}
+  .type-pills{display:flex;gap:8px;flex-wrap:wrap;}
+  .type-pill{flex:1;min-width:80px;padding:9px 6px;border-radius:10px;border:1px solid var(--line);
+    background:transparent;color:var(--mute);font-size:13px;font-weight:600;}
+  .type-pill.active{background:var(--weight);border-color:var(--weight);color:#fff;}
   @media print{
     .no-print,.tabbar{display:none!important;}
     body{background:#fff;padding:0;}
@@ -194,6 +198,51 @@
     <section id="charts" class="block" style="margin-top:0;"></section>
   </section>
 
+  <section id="page-bebe" class="tabpanel">
+    <section id="bebe-summary" class="card summary no-print" style="display:none;"></section>
+
+    <section class="card no-print">
+      <div class="type-pills" id="bebeTypePills">
+        <button type="button" class="type-pill active" data-type="poids">⚖️ Poids</button>
+        <button type="button" class="type-pill" data-type="biberon">🍼 Biberon</button>
+        <button type="button" class="type-pill" data-type="couche">🧷 Couche</button>
+        <button type="button" class="type-pill" data-type="sommeil">😴 Sommeil</button>
+      </div>
+
+      <div class="row mt" id="bebe-row-poids">
+        <label class="fld"><span class="lab">Poids (lbs)</span><input id="bebe-weight" inputmode="decimal" placeholder="14.2"></label>
+      </div>
+      <div class="row mt" id="bebe-row-biberon" style="display:none;">
+        <label class="fld"><span class="lab">Quantité (mL)</span><input id="bebe-ml" inputmode="numeric" placeholder="120"></label>
+      </div>
+      <div class="row mt" id="bebe-row-couche" style="display:none;">
+        <label class="checkrow"><input type="checkbox" id="bebe-pee"> Pipi</label>
+        <label class="checkrow"><input type="checkbox" id="bebe-poop"> Caca</label>
+      </div>
+      <div class="row mt" id="bebe-row-sommeil" style="display:none;">
+        <label class="fld"><span class="lab">Début</span><input id="bebe-sleep-start" type="datetime-local"></label>
+        <label class="fld"><span class="lab">Fin (optionnel)</span><input id="bebe-sleep-end" type="datetime-local"></label>
+      </div>
+
+      <div class="mt" id="bebe-row-when">
+        <label class="fld"><span class="lab">Date et heure</span><input id="bebe-when" type="datetime-local"></label>
+      </div>
+      <div class="mt">
+        <label class="fld"><span class="lab">Notes</span><textarea id="bebe-note" placeholder="Remarques"></textarea></label>
+      </div>
+      <div id="bebe-err" class="err" style="display:none;"></div>
+      <div class="btns">
+        <button id="bebe-save" class="primary">Enregistrer</button>
+        <button id="bebe-cancel" class="ghost" style="display:none;">Annuler</button>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="hist-head"><h2>Dernières entrées</h2></div>
+      <div id="bebe-list"></div>
+    </section>
+  </section>
+
   <section id="page-settings" class="tabpanel">
     <section class="card settings-card">
       <h2>Compte Google</h2>
@@ -222,6 +271,12 @@
       <label class="checkrow"><input type="checkbox" id="fld-glucose"> Glycémie</label>
     </section>
     <section class="card settings-card mt">
+      <h2>Bébé</h2>
+      <div class="switch-row">Afficher l'onglet Bébé
+        <label class="switch"><input type="checkbox" id="bebeModeToggle"><span class="slider"></span></label>
+      </div>
+    </section>
+    <section class="card settings-card mt">
       <h2>Zones cibles</h2>
       <p class="targets-hint">Laisse vide pour désactiver une alerte. Les valeurs hors zone s'affichent en rouge.</p>
       <div class="row mt">
@@ -247,6 +302,7 @@
     <button data-tab="home" class="active"><span class="ic">🏠</span>Accueil</button>
     <button data-tab="history"><span class="ic">📜</span>Historique</button>
     <button data-tab="charts"><span class="ic">📈</span>Graphiques</button>
+    <button data-tab="bebe" id="navBebe" style="display:none;"><span class="ic">👶</span>Bébé</button>
     <button data-tab="settings"><span class="ic">⚙️</span>Réglages</button>
   </nav>
 </div>
@@ -289,6 +345,8 @@ var NOTIF_KEY = "suivi-sante-last-notif";
 var THEME_KEY = "suivi-sante-theme";
 var FIELDS_KEY = "suivi-sante-fields";
 var TARGETS_KEY = "suivi-sante-targets";
+var BEBE_KEY = "suivi-sante-bebe-entries";
+var BEBE_ENABLED_KEY = "suivi-sante-bebe-enabled";
 var PALETTES = {
   light:{WEIGHT:"#3f6f6a",SYS:"#c4543b",DIA:"#d99a4e",DOSE:"#6d5b97",GLU:"#2f8f9d",LINE:"#dcd6c8",MUTE:"#7c8480"},
   dark:{WEIGHT:"#6fb3ac",SYS:"#e8785a",DIA:"#f0b56a",DOSE:"#a795d1",GLU:"#5cc4d4",LINE:"#33443f",MUTE:"#93a39c"}
@@ -349,7 +407,17 @@ function applyFieldVisibility(f){
   document.getElementById("row-glucose").style.display = f.glucose? "" : "none";
 }
 
+function isBebeEnabled(){ return localStorage.getItem(BEBE_ENABLED_KEY)==="1"; }
+function setBebeEnabled(v){ try{ localStorage.setItem(BEBE_ENABLED_KEY, v?"1":"0"); }catch(e){} }
+function applyBebeVisibility(enabled){
+  $("navBebe").style.display = enabled? "" : "none";
+  if(!enabled && document.getElementById("page-bebe").classList.contains("active")){
+    switchTab("home");
+  }
+}
+
 function switchTab(name){
+  if(name==="bebe" && !isBebeEnabled()) name="home";
   document.querySelectorAll(".tabpanel").forEach(function(el){ el.classList.remove("active"); });
   document.getElementById("page-"+name).classList.add("active");
   document.querySelectorAll(".tabbar button").forEach(function(el){
@@ -436,6 +504,27 @@ function scheduleAutoSync(){
   autoSyncTimer = setTimeout(function(){
     window.fbSaveBackup(acct.uid, buildBackupObj()).catch(function(){});
   }, 2000);
+}
+
+var bebeEntries = loadBebe();
+function loadBebe(){
+  try{
+    var raw = localStorage.getItem(BEBE_KEY);
+    if(raw){ return JSON.parse(raw); }
+  }catch(e){}
+  return [];
+}
+function saveBebe(arr){
+  bebeEntries = arr;
+  try{ localStorage.setItem(BEBE_KEY, JSON.stringify(arr)); }catch(e){}
+  scheduleAutoSync();
+}
+function mergeBebeEntries(newEntries){
+  var byId = {};
+  bebeEntries.forEach(function(e){ byId[e.id]=e; });
+  newEntries.forEach(function(e){ byId[e.id]=e; });
+  var merged = Object.keys(byId).map(function(k){ return byId[k]; });
+  saveBebe(merged);
 }
 function loadGoal(){
   try{
@@ -548,6 +637,160 @@ function delEntry(id){
   save(entries.filter(function(e){return e.id!==id;}));
   if(editId===id) resetForm();
   render();
+}
+
+// --- Bébé ---
+var bebeEditId = null;
+var bebeType = "poids";
+function selectBebeType(type){
+  bebeType = type;
+  document.querySelectorAll("#bebeTypePills .type-pill").forEach(function(el){
+    el.classList.toggle("active", el.dataset.type===type);
+  });
+  ["poids","biberon","couche","sommeil"].forEach(function(t){
+    $("bebe-row-"+t).style.display = (t===type) ? "" : "none";
+  });
+  $("bebe-row-when").style.display = (type==="sommeil") ? "none" : "";
+}
+document.querySelectorAll("#bebeTypePills .type-pill").forEach(function(btn){
+  btn.onclick = function(){ selectBebeType(this.dataset.type); };
+});
+
+function showBebeErr(msg){
+  var e=$("bebe-err");
+  if(msg){ e.textContent=msg; e.style.display="block"; }
+  else{ e.style.display="none"; }
+}
+function resetBebeForm(){
+  $("bebe-weight").value=""; $("bebe-ml").value=""; $("bebe-pee").checked=false; $("bebe-poop").checked=false;
+  $("bebe-sleep-start").value=""; $("bebe-sleep-end").value=""; $("bebe-note").value="";
+  $("bebe-when").value=nowLocalInput(); bebeEditId=null;
+  selectBebeType("poids");
+  $("bebe-save").textContent="Enregistrer";
+  $("bebe-cancel").style.display="none";
+  showBebeErr(null);
+}
+
+$("bebe-save").onclick=function(){
+  var nv = $("bebe-note").value.trim();
+  var note = nv===""? null : nv;
+  var ts, entry;
+  if(bebeType==="poids"){
+    var wv=$("bebe-weight").value.trim();
+    if(wv===""){ showBebeErr("Entre un poids."); return; }
+    ts = $("bebe-when").value ? new Date($("bebe-when").value).toISOString() : new Date().toISOString();
+    entry = {type:"poids", ts:ts, weight:parseFloat(wv), note:note};
+  }else if(bebeType==="biberon"){
+    var mv=$("bebe-ml").value.trim();
+    if(mv===""){ showBebeErr("Entre une quantité en mL."); return; }
+    ts = $("bebe-when").value ? new Date($("bebe-when").value).toISOString() : new Date().toISOString();
+    entry = {type:"biberon", ts:ts, ml:parseInt(mv,10), note:note};
+  }else if(bebeType==="couche"){
+    var pee=$("bebe-pee").checked, poop=$("bebe-poop").checked;
+    if(!pee && !poop){ showBebeErr("Coche pipi et/ou caca."); return; }
+    ts = $("bebe-when").value ? new Date($("bebe-when").value).toISOString() : new Date().toISOString();
+    entry = {type:"couche", ts:ts, pee:pee, poop:poop, note:note};
+  }else{
+    var sv=$("bebe-sleep-start").value, ev=$("bebe-sleep-end").value;
+    if(!sv){ showBebeErr("Entre au moins l'heure de début."); return; }
+    var startTs = new Date(sv).toISOString();
+    var endTs = ev ? new Date(ev).toISOString() : null;
+    ts = startTs;
+    entry = {type:"sommeil", ts:ts, startTs:startTs, endTs:endTs, note:note};
+  }
+  var next;
+  if(bebeEditId){
+    entry.id = bebeEditId;
+    next = bebeEntries.map(function(en){ return en.id===bebeEditId ? entry : en; });
+  }else{
+    entry.id = Date.now();
+    next = bebeEntries.concat([entry]);
+  }
+  saveBebe(next); resetBebeForm(); renderBebe();
+};
+$("bebe-cancel").onclick=function(){ resetBebeForm(); };
+
+function editBebeEntry(id){
+  var en = bebeEntries.filter(function(e){return e.id===id;})[0];
+  if(!en) return;
+  bebeEditId=id;
+  selectBebeType(en.type);
+  if(en.type==="poids"){ $("bebe-weight").value = en.weight; }
+  else if(en.type==="biberon"){ $("bebe-ml").value = en.ml; }
+  else if(en.type==="couche"){ $("bebe-pee").checked=!!en.pee; $("bebe-poop").checked=!!en.poop; }
+  else if(en.type==="sommeil"){
+    $("bebe-sleep-start").value = toInputVal(en.startTs);
+    $("bebe-sleep-end").value = en.endTs ? toInputVal(en.endTs) : "";
+  }
+  $("bebe-note").value = en.note==null?"":en.note;
+  $("bebe-when").value = toInputVal(en.ts);
+  $("bebe-save").textContent="Mettre à jour";
+  $("bebe-cancel").style.display="block";
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function delBebeEntry(id){
+  if(!confirm("Supprimer cette entrée ?")) return;
+  saveBebe(bebeEntries.filter(function(e){return e.id!==id;}));
+  if(bebeEditId===id) resetBebeForm();
+  renderBebe();
+}
+
+function bebeEntryRowHtml(en){
+  var v="";
+  if(en.type==="poids"){
+    v = '<span><strong style="color:'+WEIGHT+'">'+en.weight+'</strong> <span class="unit">lbs</span></span>';
+  }else if(en.type==="biberon"){
+    v = '<span><strong style="color:'+DOSE+'">🍼 '+en.ml+'</strong> <span class="unit">mL</span></span>';
+  }else if(en.type==="couche"){
+    var parts=[]; if(en.pee) parts.push("pipi"); if(en.poop) parts.push("caca");
+    v = '<span><strong>🧷 '+parts.join(" + ")+'</strong></span>';
+  }else if(en.type==="sommeil"){
+    var durTxt = "";
+    if(en.endTs){
+      var mins = Math.round((new Date(en.endTs)-new Date(en.startTs))/60000);
+      durTxt = " · "+Math.floor(mins/60)+"h"+(mins%60<10?"0":"")+(mins%60);
+    }
+    v = '<span><strong>😴 '+fmtDate(en.startTs)+(en.endTs? " → "+fmtDate(en.endTs) : " (en cours)")+durTxt+'</strong></span>';
+  }
+  var extra = en.note ? '<div class="note-txt">'+escHtml(en.note)+'</div>' : "";
+  return '<div class="entry"><div style="flex:1;min-width:0;"><div class="when">'+fmtDate(en.ts)+'</div><div class="vals">'+v+'</div>'+extra+'</div>'+
+    '<button class="icon no-print" onclick="editBebeEntry('+en.id+')" title="Modifier">&#9998;</button>'+
+    '<button class="icon del no-print" onclick="delBebeEntry('+en.id+')" title="Supprimer">&#10005;</button></div>';
+}
+
+function renderBebe(){
+  var sorted = bebeEntries.slice().sort(function(a,b){return new Date(b.ts)-new Date(a.ts);});
+  var todayStr = new Date().toDateString();
+  var todays = bebeEntries.filter(function(e){ return new Date(e.ts).toDateString()===todayStr; });
+  var bottles = todays.filter(function(e){return e.type==="biberon";});
+  var diapers = todays.filter(function(e){return e.type==="couche";});
+  var sleeps = todays.filter(function(e){return e.type==="sommeil" && e.endTs;});
+  var lastWeight = bebeEntries.filter(function(e){return e.type==="poids";})
+    .sort(function(a,b){return new Date(a.ts)-new Date(b.ts);}).pop();
+
+  var statsHtml = "";
+  if(bottles.length){
+    var totalMl = bottles.reduce(function(a,e){return a+(e.ml||0);},0);
+    statsHtml += '<div class="stat"><div class="k">Biberons aujourd\'hui</div><div class="v">'+bottles.length+' · '+totalMl+' mL</div></div>';
+  }
+  if(diapers.length){
+    var pee = diapers.filter(function(e){return e.pee;}).length, poop = diapers.filter(function(e){return e.poop;}).length;
+    statsHtml += '<div class="stat"><div class="k">Couches aujourd\'hui</div><div class="v">'+diapers.length+' (💧'+pee+' 💩'+poop+')</div></div>';
+  }
+  if(lastWeight){
+    statsHtml += '<div class="stat"><div class="k">Dernier poids</div><div class="v" style="color:'+WEIGHT+'">'+lastWeight.weight+' lbs</div></div>';
+  }
+  if(sleeps.length){
+    var totalMin = sleeps.reduce(function(a,e){return a+Math.round((new Date(e.endTs)-new Date(e.startTs))/60000);},0);
+    statsHtml += '<div class="stat"><div class="k">Sommeil aujourd\'hui</div><div class="v">'+Math.floor(totalMin/60)+'h'+(totalMin%60<10?"0":"")+(totalMin%60)+'</div></div>';
+  }
+  $("bebe-summary").innerHTML = statsHtml? '<div class="row">'+statsHtml+'</div>' : "";
+  $("bebe-summary").style.display = statsHtml? "block":"none";
+
+  $("bebe-list").innerHTML = sorted.length===0
+    ? '<p class="empty">Aucune entrée pour l\'instant.</p>'
+    : sorted.map(bebeEntryRowHtml).join("");
 }
 
 function toB64Utf8(str){
@@ -777,7 +1020,8 @@ $("csv").onclick=function(){
 function buildBackupObj(){
   return {
     app:"suivi-sante", version:1, exportedAt:new Date().toISOString(),
-    entries:entries, fields:loadFields(), targets:loadTargets(), goal:loadGoal()
+    entries:entries, fields:loadFields(), targets:loadTargets(), goal:loadGoal(),
+    bebeEntries:bebeEntries, bebeEnabled:isBebeEnabled()
   };
 }
 function buildBackupJson(){ return JSON.stringify(buildBackupObj(), null, 2); }
@@ -792,6 +1036,13 @@ function applyRestoredData(data){
   $("fld-weight").checked=!!f.weight; $("fld-bp").checked=!!f.bp;
   $("fld-dose").checked=!!f.dose; $("fld-glucose").checked=!!f.glucose;
   applyFieldVisibility(f);
+  if(data.bebeEntries) mergeBebeEntries(data.bebeEntries);
+  if(data.bebeEnabled!=null){
+    setBebeEnabled(!!data.bebeEnabled);
+    $("bebeModeToggle").checked = isBebeEnabled();
+    applyBebeVisibility(isBebeEnabled());
+  }
+  renderBebe();
   render();
   return newEntries.length;
 }
@@ -1207,7 +1458,11 @@ window.editEntry = editEntry;
 window.delEntry = delEntry;
 window.quickInjection = quickInjection;
 window.enableReminders = enableReminders;
+window.editBebeEntry = editBebeEntry;
+window.delBebeEntry = delBebeEntry;
 render();
+resetBebeForm();
+renderBebe();
 
 // --- Onglets ---
 document.querySelectorAll(".tabbar button").forEach(function(btn){
@@ -1258,6 +1513,15 @@ $("darkModeToggle").checked = (getTheme()==="dark");
 $("darkModeToggle").addEventListener("change", function(){
   applyTheme(this.checked ? "dark" : "light");
   render();
+});
+
+// --- Réglages : onglet Bébé ---
+var bebeEnabledNow = isBebeEnabled();
+$("bebeModeToggle").checked = bebeEnabledNow;
+applyBebeVisibility(bebeEnabledNow);
+$("bebeModeToggle").addEventListener("change", function(){
+  setBebeEnabled(this.checked);
+  applyBebeVisibility(this.checked);
 });
 
 $("appver").textContent = APP_VERSION;
