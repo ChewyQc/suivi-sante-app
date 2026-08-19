@@ -117,6 +117,12 @@
   .type-pill{flex:1;min-width:80px;padding:9px 6px;border-radius:10px;border:1px solid var(--line);
     background:transparent;color:var(--mute);font-size:13px;font-weight:600;}
   .type-pill.active{background:var(--weight);border-color:var(--weight);color:#fff;}
+  .chart-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+  .chart-head .chart-title{margin:0;}
+  .chart-toggle{display:flex;gap:6px;}
+  .chart-toggle button{padding:5px 10px;border-radius:8px;border:1px solid var(--line);background:transparent;
+    color:var(--mute);font-size:11px;font-weight:600;}
+  .chart-toggle button.active{background:var(--dose);border-color:var(--dose);color:#fff;}
   @media print{
     .no-print,.tabbar{display:none!important;}
     body{background:#fff;padding:0;}
@@ -355,7 +361,7 @@ var PALETTES = {
 var WEIGHT,SYS,DIA,DOSE,GLU,LINE,MUTE;
 var CAP = (window.Capacitor && window.Capacitor.Plugins) ? window.Capacitor.Plugins : null;
 var REMINDER_ID = 9001;
-var APP_VERSION = "3.9";
+var APP_VERSION = "3.91";
 var UPDATE_URL = "https://raw.githubusercontent.com/ChewyQc/suivi-sante-app/main/version.json";
 
 function getTheme(){
@@ -642,6 +648,7 @@ function delEntry(id){
 
 // --- Bébé ---
 var bebeEditId = null;
+var bebeMlMode = "jour";
 var bebeType = "biberon";
 function selectBebeType(type){
   bebeType = type;
@@ -793,14 +800,15 @@ function renderBebe(){
     .sort(function(a,b){return new Date(a.ts)-new Date(b.ts);})
     .map(function(e){ return {label:fmtDateShort(e.ts), weight:e.weight}; });
 
+  var bottlesAsc = bebeEntries.filter(function(e){return e.type==="biberon";})
+    .sort(function(a,b){return new Date(a.ts)-new Date(b.ts);});
+  var mlPerFeedChrono = bottlesAsc.map(function(e){ return {label:fmtDateShort(e.ts), ml:e.ml}; });
   var mlByDay = {}, dayKeys = [];
-  bebeEntries.filter(function(e){return e.type==="biberon";})
-    .sort(function(a,b){return new Date(a.ts)-new Date(b.ts);})
-    .forEach(function(e){
-      var d = new Date(e.ts), key = d.toDateString();
-      if(!(key in mlByDay)){ mlByDay[key] = {ml:0, label:fmtDateShort(e.ts)}; dayKeys.push(key); }
-      mlByDay[key].ml += (e.ml||0);
-    });
+  bottlesAsc.forEach(function(e){
+    var d = new Date(e.ts), key = d.toDateString();
+    if(!(key in mlByDay)){ mlByDay[key] = {ml:0, label:fmtDateShort(e.ts)}; dayKeys.push(key); }
+    mlByDay[key].ml += (e.ml||0);
+  });
   var mlChrono = dayKeys.map(function(k){ return {label:mlByDay[k].label, ml:mlByDay[k].ml}; });
 
   var chBebe = "";
@@ -808,12 +816,22 @@ function renderBebe(){
     if(weightChrono.length){
       chBebe += '<div class="chart-card"><h2 class="chart-title" style="color:'+WEIGHT+'">Poids bébé (lbs)</h2>'+lineChart(weightChrono,"weight",WEIGHT)+'</div>';
     }
-    if(mlChrono.length){
-      chBebe += '<div class="chart-card"><h2 class="chart-title" style="color:'+DOSE+'">Biberons (mL/jour)</h2>'+lineChart(mlChrono,"ml",DOSE)+'</div>';
+    if(mlChrono.length || mlPerFeedChrono.length){
+      var mlData = bebeMlMode==="boire" ? mlPerFeedChrono : mlChrono;
+      chBebe += '<div class="chart-card"><div class="chart-head"><h2 class="chart-title" style="color:'+DOSE+'">Biberons</h2>'+
+        '<div class="chart-toggle" id="bebeMlModeToggle">'+
+        '<button type="button" data-mlmode="jour" class="'+(bebeMlMode==="jour"?"active":"")+'">mL / jour</button>'+
+        '<button type="button" data-mlmode="boire" class="'+(bebeMlMode==="boire"?"active":"")+'">mL / biberon</button>'+
+        '</div></div>'+lineChart(mlData,"ml",DOSE)+'</div>';
     }
   }
   $("bebe-charts").innerHTML = chBebe;
   $("bebe-charts").style.display = chBebe? "block":"none";
+  if($("bebeMlModeToggle")){
+    $("bebeMlModeToggle").querySelectorAll("button").forEach(function(btn){
+      btn.onclick = function(){ bebeMlMode = this.dataset.mlmode; renderBebe(); };
+    });
+  }
 
   $("bebe-list").innerHTML = sorted.length===0
     ? '<p class="empty">Aucune entrée pour l\'instant.</p>'
