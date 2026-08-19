@@ -1,5 +1,5 @@
 {
-    "version":  "3.7",
+    "version":  "3.8",
     "apkUrl":  "https://github.com/ChewyQc/suivi-sante-app/releases/latest/download/SuiviSante.apk",
-    "notes":  "Nouvel onglet Bebe (masque par defaut, activable dans Reglages) : poids en lbs, biberons en mL, couches pipi/caca, sommeil avec duree, et resume de la journee."
+    "notes":  "Nouveaux graphiques pour le bebe dans l'onglet Graphiques : poids et biberons (mL/jour)."
 }
