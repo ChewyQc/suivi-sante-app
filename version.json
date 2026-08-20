@@ -1,5 +1,5 @@
 {
-    "version":  "3.91",
+    "version":  "3.92",
     "apkUrl":  "https://github.com/ChewyQc/suivi-sante-app/releases/latest/download/SuiviSante.apk",
-    "notes":  "Graphique Biberons : switch mL/jour ou mL/biberon en en-tete."
+    "notes":  "Onglet Bebe : resume toujours visible + notes sans donnee."
 }
