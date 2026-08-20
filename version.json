@@ -1,5 +1,5 @@
 {
-    "version":  "3.92",
+    "version":  "3.93",
     "apkUrl":  "https://github.com/ChewyQc/suivi-sante-app/releases/latest/download/SuiviSante.apk",
-    "notes":  "Onglet Bebe : resume toujours visible + notes sans donnee."
+    "notes":  "Onglet Bebe : tous les champs visibles en meme temps (comme l'accueil), plus besoin de choisir un bouton."
 }

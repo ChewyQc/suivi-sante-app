@@ -113,10 +113,6 @@
     background:#fff;border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .2s ease;}
   .switch input:checked + .slider{background:var(--weight);}
   .switch input:checked + .slider:before{transform:translateX(18px);}
-  .type-pills{display:flex;gap:8px;flex-wrap:wrap;}
-  .type-pill{flex:1;min-width:80px;padding:9px 6px;border-radius:10px;border:1px solid var(--line);
-    background:transparent;color:var(--mute);font-size:13px;font-weight:600;}
-  .type-pill.active{background:var(--weight);border-color:var(--weight);color:#fff;}
   .chart-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
   .chart-head .chart-title{margin:0;}
   .chart-toggle{display:flex;gap:6px;}
@@ -209,34 +205,26 @@
     <section id="bebe-summary" class="card summary no-print" style="display:none;"></section>
 
     <section class="card no-print">
-      <div class="type-pills" id="bebeTypePills">
-        <button type="button" class="type-pill active" data-type="biberon">🍼 Biberon</button>
-        <button type="button" class="type-pill" data-type="couche">🧷 Couche</button>
-        <button type="button" class="type-pill" data-type="sommeil">😴 Sommeil</button>
-        <button type="button" class="type-pill" data-type="poids">⚖️ Poids</button>
-        <button type="button" class="type-pill" data-type="note">📝 Note</button>
-      </div>
-
       <div class="row mt" id="bebe-row-biberon">
-        <label class="fld"><span class="lab">Quantité (mL)</span><input id="bebe-ml" inputmode="numeric" placeholder="120"></label>
+        <label class="fld"><span class="lab">🍼 Biberon (mL)</span><input id="bebe-ml" inputmode="numeric" placeholder="120"></label>
       </div>
-      <div class="row mt" id="bebe-row-couche" style="display:none;">
-        <label class="checkrow"><input type="checkbox" id="bebe-pee"> Pipi</label>
-        <label class="checkrow"><input type="checkbox" id="bebe-poop"> Caca</label>
+      <div class="row mt" id="bebe-row-couche">
+        <label class="checkrow"><input type="checkbox" id="bebe-pee"> 🧷 Pipi</label>
+        <label class="checkrow"><input type="checkbox" id="bebe-poop"> 🧷 Caca</label>
       </div>
-      <div class="row mt" id="bebe-row-sommeil" style="display:none;">
-        <label class="fld"><span class="lab">Début</span><input id="bebe-sleep-start" type="datetime-local"></label>
-        <label class="fld"><span class="lab">Fin (optionnel)</span><input id="bebe-sleep-end" type="datetime-local"></label>
+      <div class="row mt" id="bebe-row-sommeil">
+        <label class="fld"><span class="lab">😴 Sommeil — début</span><input id="bebe-sleep-start" type="datetime-local"></label>
+        <label class="fld"><span class="lab">😴 Sommeil — fin (optionnel)</span><input id="bebe-sleep-end" type="datetime-local"></label>
       </div>
-      <div class="row mt" id="bebe-row-poids" style="display:none;">
-        <label class="fld"><span class="lab">Poids (lbs)</span><input id="bebe-weight" inputmode="decimal" placeholder="14.2"></label>
+      <div class="row mt" id="bebe-row-poids">
+        <label class="fld"><span class="lab">⚖️ Poids (lbs)</span><input id="bebe-weight" inputmode="decimal" placeholder="14.2"></label>
       </div>
 
       <div class="mt" id="bebe-row-when">
         <label class="fld"><span class="lab">Date et heure</span><input id="bebe-when" type="datetime-local"></label>
       </div>
       <div class="mt">
-        <label class="fld"><span class="lab">Notes</span><textarea id="bebe-note" placeholder="Remarques"></textarea></label>
+        <label class="fld"><span class="lab">📝 Note</span><textarea id="bebe-note" placeholder="Remarques (peut être utilisé seul, sans autre donnée)"></textarea></label>
       </div>
       <div id="bebe-err" class="err" style="display:none;"></div>
       <div class="btns">
@@ -362,7 +350,7 @@ var PALETTES = {
 var WEIGHT,SYS,DIA,DOSE,GLU,LINE,MUTE;
 var CAP = (window.Capacitor && window.Capacitor.Plugins) ? window.Capacitor.Plugins : null;
 var REMINDER_ID = 9001;
-var APP_VERSION = "3.92";
+var APP_VERSION = "3.93";
 var UPDATE_URL = "https://raw.githubusercontent.com/ChewyQc/suivi-sante-app/main/version.json";
 
 function getTheme(){
@@ -649,21 +637,8 @@ function delEntry(id){
 
 // --- Bébé ---
 var bebeEditId = null;
+var bebeEditType = null;
 var bebeMlMode = "jour";
-var bebeType = "biberon";
-function selectBebeType(type){
-  bebeType = type;
-  document.querySelectorAll("#bebeTypePills .type-pill").forEach(function(el){
-    el.classList.toggle("active", el.dataset.type===type);
-  });
-  ["poids","biberon","couche","sommeil"].forEach(function(t){
-    $("bebe-row-"+t).style.display = (t===type) ? "" : "none";
-  });
-  $("bebe-row-when").style.display = (type==="sommeil") ? "none" : "";
-}
-document.querySelectorAll("#bebeTypePills .type-pill").forEach(function(btn){
-  btn.onclick = function(){ selectBebeType(this.dataset.type); };
-});
 
 function showBebeErr(msg){
   var e=$("bebe-err");
@@ -673,8 +648,7 @@ function showBebeErr(msg){
 function resetBebeForm(){
   $("bebe-weight").value=""; $("bebe-ml").value=""; $("bebe-pee").checked=false; $("bebe-poop").checked=false;
   $("bebe-sleep-start").value=""; $("bebe-sleep-end").value=""; $("bebe-note").value="";
-  $("bebe-when").value=nowLocalInput(); bebeEditId=null;
-  selectBebeType("biberon");
+  $("bebe-when").value=nowLocalInput(); bebeEditId=null; bebeEditType=null;
   $("bebe-save").textContent="Enregistrer";
   $("bebe-cancel").style.display="none";
   showBebeErr(null);
@@ -683,51 +657,67 @@ function resetBebeForm(){
 $("bebe-save").onclick=function(){
   var nv = $("bebe-note").value.trim();
   var note = nv===""? null : nv;
-  var ts, entry;
-  if(bebeType==="poids"){
-    var wv=$("bebe-weight").value.trim();
-    if(wv===""){ showBebeErr("Entre un poids."); return; }
-    ts = $("bebe-when").value ? new Date($("bebe-when").value).toISOString() : new Date().toISOString();
-    entry = {type:"poids", ts:ts, weight:parseFloat(wv), note:note};
-  }else if(bebeType==="biberon"){
-    var mv=$("bebe-ml").value.trim();
-    if(mv===""){ showBebeErr("Entre une quantité en mL."); return; }
-    ts = $("bebe-when").value ? new Date($("bebe-when").value).toISOString() : new Date().toISOString();
-    entry = {type:"biberon", ts:ts, ml:parseInt(mv,10), note:note};
-  }else if(bebeType==="couche"){
-    var pee=$("bebe-pee").checked, poop=$("bebe-poop").checked;
-    if(!pee && !poop){ showBebeErr("Coche pipi et/ou caca."); return; }
-    ts = $("bebe-when").value ? new Date($("bebe-when").value).toISOString() : new Date().toISOString();
-    entry = {type:"couche", ts:ts, pee:pee, poop:poop, note:note};
-  }else if(bebeType==="note"){
-    if(!note){ showBebeErr("Écris une note."); return; }
-    ts = $("bebe-when").value ? new Date($("bebe-when").value).toISOString() : new Date().toISOString();
-    entry = {type:"note", ts:ts, note:note};
-  }else{
-    var sv=$("bebe-sleep-start").value, ev=$("bebe-sleep-end").value;
-    if(!sv){ showBebeErr("Entre au moins l'heure de début."); return; }
+  var ts = $("bebe-when").value ? new Date($("bebe-when").value).toISOString() : new Date().toISOString();
+
+  if(bebeEditId){
+    var entry;
+    if(bebeEditType==="poids"){
+      var wv=$("bebe-weight").value.trim();
+      if(wv===""){ showBebeErr("Entre un poids."); return; }
+      entry = {type:"poids", ts:ts, weight:parseFloat(wv), note:note};
+    }else if(bebeEditType==="biberon"){
+      var mv=$("bebe-ml").value.trim();
+      if(mv===""){ showBebeErr("Entre une quantité en mL."); return; }
+      entry = {type:"biberon", ts:ts, ml:parseInt(mv,10), note:note};
+    }else if(bebeEditType==="couche"){
+      var pee=$("bebe-pee").checked, poop=$("bebe-poop").checked;
+      if(!pee && !poop){ showBebeErr("Coche pipi et/ou caca."); return; }
+      entry = {type:"couche", ts:ts, pee:pee, poop:poop, note:note};
+    }else if(bebeEditType==="note"){
+      if(!note){ showBebeErr("Écris une note."); return; }
+      entry = {type:"note", ts:ts, note:note};
+    }else{
+      var sv=$("bebe-sleep-start").value, ev=$("bebe-sleep-end").value;
+      if(!sv){ showBebeErr("Entre au moins l'heure de début."); return; }
+      var startTs = new Date(sv).toISOString();
+      var endTs = ev ? new Date(ev).toISOString() : null;
+      entry = {type:"sommeil", ts:startTs, startTs:startTs, endTs:endTs, note:note};
+    }
+    entry.id = bebeEditId;
+    saveBebe(bebeEntries.map(function(en){ return en.id===bebeEditId ? entry : en; }));
+    resetBebeForm(); renderBebe();
+    return;
+  }
+
+  var mv = $("bebe-ml").value.trim();
+  var pee = $("bebe-pee").checked, poop = $("bebe-poop").checked;
+  var sv = $("bebe-sleep-start").value, ev = $("bebe-sleep-end").value;
+  var wv = $("bebe-weight").value.trim();
+
+  var newEntries = [];
+  if(mv!==""){ newEntries.push({type:"biberon", ts:ts, ml:parseInt(mv,10), note:note}); }
+  if(pee || poop){ newEntries.push({type:"couche", ts:ts, pee:pee, poop:poop, note:note}); }
+  if(sv){
     var startTs = new Date(sv).toISOString();
     var endTs = ev ? new Date(ev).toISOString() : null;
-    ts = startTs;
-    entry = {type:"sommeil", ts:ts, startTs:startTs, endTs:endTs, note:note};
+    newEntries.push({type:"sommeil", ts:startTs, startTs:startTs, endTs:endTs, note:note});
   }
-  var next;
-  if(bebeEditId){
-    entry.id = bebeEditId;
-    next = bebeEntries.map(function(en){ return en.id===bebeEditId ? entry : en; });
-  }else{
-    entry.id = Date.now();
-    next = bebeEntries.concat([entry]);
+  if(wv!==""){ newEntries.push({type:"poids", ts:ts, weight:parseFloat(wv), note:note}); }
+  if(newEntries.length===0){
+    if(!note){ showBebeErr("Entre au moins une donnée ou une note."); return; }
+    newEntries.push({type:"note", ts:ts, note:note});
   }
-  saveBebe(next); resetBebeForm(); renderBebe();
+  newEntries.forEach(function(e, i){ e.id = Date.now()+i; });
+  saveBebe(bebeEntries.concat(newEntries));
+  resetBebeForm(); renderBebe();
 };
 $("bebe-cancel").onclick=function(){ resetBebeForm(); };
 
 function editBebeEntry(id){
   var en = bebeEntries.filter(function(e){return e.id===id;})[0];
   if(!en) return;
-  bebeEditId=id;
-  selectBebeType(en.type);
+  resetBebeForm();
+  bebeEditId=id; bebeEditType=en.type;
   if(en.type==="poids"){ $("bebe-weight").value = en.weight; }
   else if(en.type==="biberon"){ $("bebe-ml").value = en.ml; }
   else if(en.type==="couche"){ $("bebe-pee").checked=!!en.pee; $("bebe-poop").checked=!!en.poop; }
