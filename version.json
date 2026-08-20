@@ -1,5 +1,5 @@
 {
-    "version":  "3.95",
+    "version":  "3.96",
     "apkUrl":  "https://github.com/ChewyQc/suivi-sante-app/releases/latest/download/SuiviSante.apk",
-    "notes":  "Onglet Bebe : emoji goutte et caca au lieu de l'epingle pour Pipi/Caca."
+    "notes":  "Onglet Bebe : correction, la note ne s'affichait plus en double quand plusieurs donnees etaient enregistrees ensemble."
 }

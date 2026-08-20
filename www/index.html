@@ -354,7 +354,7 @@ var PALETTES = {
 var WEIGHT,SYS,DIA,DOSE,GLU,LINE,MUTE;
 var CAP = (window.Capacitor && window.Capacitor.Plugins) ? window.Capacitor.Plugins : null;
 var REMINDER_ID = 9001;
-var APP_VERSION = "3.95";
+var APP_VERSION = "3.96";
 var UPDATE_URL = "https://raw.githubusercontent.com/ChewyQc/suivi-sante-app/main/version.json";
 
 function getTheme(){
@@ -699,17 +699,19 @@ $("bebe-save").onclick=function(){
   var wv = $("bebe-weight").value.trim();
 
   var newEntries = [];
-  if(mv!==""){ newEntries.push({type:"biberon", ts:ts, ml:parseInt(mv,10), note:note}); }
-  if(pee || poop){ newEntries.push({type:"couche", ts:ts, pee:pee, poop:poop, note:note}); }
+  if(mv!==""){ newEntries.push({type:"biberon", ts:ts, ml:parseInt(mv,10), note:null}); }
+  if(pee || poop){ newEntries.push({type:"couche", ts:ts, pee:pee, poop:poop, note:null}); }
   if(sv){
     var startTs = new Date(sv).toISOString();
     var endTs = ev ? new Date(ev).toISOString() : null;
-    newEntries.push({type:"sommeil", ts:startTs, startTs:startTs, endTs:endTs, note:note});
+    newEntries.push({type:"sommeil", ts:startTs, startTs:startTs, endTs:endTs, note:null});
   }
-  if(wv!==""){ newEntries.push({type:"poids", ts:ts, weight:parseFloat(wv), note:note}); }
+  if(wv!==""){ newEntries.push({type:"poids", ts:ts, weight:parseFloat(wv), note:null}); }
   if(newEntries.length===0){
     if(!note){ showBebeErr("Entre au moins une donnée ou une note."); return; }
     newEntries.push({type:"note", ts:ts, note:note});
+  }else if(note){
+    newEntries[0].note = note;
   }
   newEntries.forEach(function(e, i){ e.id = Date.now()+i; });
   saveBebe(bebeEntries.concat(newEntries));
