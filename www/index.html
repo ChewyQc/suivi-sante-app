@@ -68,6 +68,10 @@
   .unit{color:var(--mute);font-size:13px;}
   .icon{border:none;background:transparent;font-size:16px;color:#9aa19c;padding:6px;line-height:1;}
   .icon.del{color:var(--sys);}
+  .entry-group{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px;}
+  .entry-group .when{font-size:13px;color:var(--mute);margin-bottom:6px;}
+  .entry-sub{display:flex;align-items:center;gap:12px;padding:6px 0;border-top:1px solid var(--line);}
+  .entry-sub:first-of-type{border-top:none;padding-top:0;}
   .empty{color:var(--mute);}
   .foot{margin-top:28px;font-size:12px;color:var(--mute);text-align:center;}
   .foot a{color:var(--weight);}
@@ -350,7 +354,7 @@ var PALETTES = {
 var WEIGHT,SYS,DIA,DOSE,GLU,LINE,MUTE;
 var CAP = (window.Capacitor && window.Capacitor.Plugins) ? window.Capacitor.Plugins : null;
 var REMINDER_ID = 9001;
-var APP_VERSION = "3.93";
+var APP_VERSION = "3.94";
 var UPDATE_URL = "https://raw.githubusercontent.com/ChewyQc/suivi-sante-app/main/version.json";
 
 function getTheme(){
@@ -739,29 +743,41 @@ function delBebeEntry(id){
   renderBebe();
 }
 
-function bebeEntryRowHtml(en){
-  var v="";
+function bebeEntryValueHtml(en){
   if(en.type==="poids"){
-    v = '<span><strong style="color:'+WEIGHT+'">'+en.weight+'</strong> <span class="unit">lbs</span></span>';
+    return '<span><strong style="color:'+WEIGHT+'">'+en.weight+'</strong> <span class="unit">lbs</span></span>';
   }else if(en.type==="biberon"){
-    v = '<span><strong style="color:'+DOSE+'">🍼 '+en.ml+'</strong> <span class="unit">mL</span></span>';
+    return '<span><strong style="color:'+DOSE+'">🍼 '+en.ml+'</strong> <span class="unit">mL</span></span>';
   }else if(en.type==="couche"){
     var parts=[]; if(en.pee) parts.push("pipi"); if(en.poop) parts.push("caca");
-    v = '<span><strong>🧷 '+parts.join(" + ")+'</strong></span>';
+    return '<span><strong>🧷 '+parts.join(" + ")+'</strong></span>';
   }else if(en.type==="sommeil"){
     var durTxt = "";
     if(en.endTs){
       var mins = Math.round((new Date(en.endTs)-new Date(en.startTs))/60000);
       durTxt = " · "+Math.floor(mins/60)+"h"+(mins%60<10?"0":"")+(mins%60);
     }
-    v = '<span><strong>😴 '+fmtDate(en.startTs)+(en.endTs? " → "+fmtDate(en.endTs) : " (en cours)")+durTxt+'</strong></span>';
-  }else if(en.type==="note"){
-    v = '<span><strong>📝 Note</strong></span>';
+    return '<span><strong>😴 '+fmtDate(en.startTs)+(en.endTs? " → "+fmtDate(en.endTs) : " (en cours)")+durTxt+'</strong></span>';
   }
+  return '<span><strong>📝 Note</strong></span>';
+}
+
+function bebeEntryRowHtml(en){
   var extra = en.note ? '<div class="note-txt">'+escHtml(en.note)+'</div>' : "";
-  return '<div class="entry"><div style="flex:1;min-width:0;"><div class="when">'+fmtDate(en.ts)+'</div><div class="vals">'+v+'</div>'+extra+'</div>'+
+  return '<div class="entry"><div style="flex:1;min-width:0;"><div class="when">'+fmtDate(en.ts)+'</div><div class="vals">'+bebeEntryValueHtml(en)+'</div>'+extra+'</div>'+
     '<button class="icon no-print" onclick="editBebeEntry('+en.id+')" title="Modifier">&#9998;</button>'+
     '<button class="icon del no-print" onclick="delBebeEntry('+en.id+')" title="Supprimer">&#10005;</button></div>';
+}
+
+function bebeGroupHtml(group){
+  if(group.length===1) return bebeEntryRowHtml(group[0]);
+  var subs = group.map(function(en){
+    var extra = en.note ? '<div class="note-txt">'+escHtml(en.note)+'</div>' : "";
+    return '<div class="entry-sub"><div style="flex:1;min-width:0;"><div class="vals">'+bebeEntryValueHtml(en)+'</div>'+extra+'</div>'+
+      '<button class="icon no-print" onclick="editBebeEntry('+en.id+')" title="Modifier">&#9998;</button>'+
+      '<button class="icon del no-print" onclick="delBebeEntry('+en.id+')" title="Supprimer">&#10005;</button></div>';
+  }).join("");
+  return '<div class="entry-group"><div class="when">'+fmtDate(group[0].ts)+'</div>'+subs+'</div>';
 }
 
 function renderBebe(){
@@ -825,9 +841,18 @@ function renderBebe(){
     });
   }
 
-  $("bebe-list").innerHTML = sorted.length===0
+  var groups = [];
+  sorted.forEach(function(en){
+    var g = groups.length? groups[groups.length-1] : null;
+    if(g && Math.abs(new Date(g[0].ts)-new Date(en.ts)) <= 15*60000){
+      g.push(en);
+    }else{
+      groups.push([en]);
+    }
+  });
+  $("bebe-list").innerHTML = groups.length===0
     ? '<p class="empty">Aucune entrée pour l\'instant.</p>'
-    : sorted.map(bebeEntryRowHtml).join("");
+    : groups.map(bebeGroupHtml).join("");
 }
 
 function toB64Utf8(str){
