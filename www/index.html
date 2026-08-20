@@ -213,8 +213,8 @@
         <label class="fld"><span class="lab">🍼 Biberon (mL)</span><input id="bebe-ml" inputmode="numeric" placeholder="120"></label>
       </div>
       <div class="row mt" id="bebe-row-couche">
-        <label class="checkrow"><input type="checkbox" id="bebe-pee"> 🧷 Pipi</label>
-        <label class="checkrow"><input type="checkbox" id="bebe-poop"> 🧷 Caca</label>
+        <label class="checkrow"><input type="checkbox" id="bebe-pee"> 💧 Pipi</label>
+        <label class="checkrow"><input type="checkbox" id="bebe-poop"> 💩 Caca</label>
       </div>
       <div class="row mt" id="bebe-row-sommeil">
         <label class="fld"><span class="lab">😴 Sommeil — début</span><input id="bebe-sleep-start" type="datetime-local"></label>
@@ -354,7 +354,7 @@ var PALETTES = {
 var WEIGHT,SYS,DIA,DOSE,GLU,LINE,MUTE;
 var CAP = (window.Capacitor && window.Capacitor.Plugins) ? window.Capacitor.Plugins : null;
 var REMINDER_ID = 9001;
-var APP_VERSION = "3.94";
+var APP_VERSION = "3.95";
 var UPDATE_URL = "https://raw.githubusercontent.com/ChewyQc/suivi-sante-app/main/version.json";
 
 function getTheme(){
@@ -749,8 +749,8 @@ function bebeEntryValueHtml(en){
   }else if(en.type==="biberon"){
     return '<span><strong style="color:'+DOSE+'">🍼 '+en.ml+'</strong> <span class="unit">mL</span></span>';
   }else if(en.type==="couche"){
-    var parts=[]; if(en.pee) parts.push("pipi"); if(en.poop) parts.push("caca");
-    return '<span><strong>🧷 '+parts.join(" + ")+'</strong></span>';
+    var parts=[]; if(en.pee) parts.push("💧 pipi"); if(en.poop) parts.push("💩 caca");
+    return '<span><strong>'+parts.join(" + ")+'</strong></span>';
   }else if(en.type==="sommeil"){
     var durTxt = "";
     if(en.endTs){

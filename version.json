@@ -1,5 +1,5 @@
 {
-    "version":  "3.94",
+    "version":  "3.95",
     "apkUrl":  "https://github.com/ChewyQc/suivi-sante-app/releases/latest/download/SuiviSante.apk",
-    "notes":  "Onglet Bebe : les entrees a moins de 15 min d'intervalle sont fusionnees automatiquement dans la liste."
+    "notes":  "Onglet Bebe : emoji goutte et caca au lieu de l'epingle pour Pipi/Caca."
 }
