@@ -1,5 +1,5 @@
 {
-    "version":  "3.98",
+    "version":  "3.99",
     "apkUrl":  "https://github.com/ChewyQc/suivi-sante-app/releases/latest/download/SuiviSante.apk",
-    "notes":  "Reglages : choisir quelles fonctionnalites bebe (Biberon, Couche, Sommeil, Poids) sont affichees, comme pour l'accueil."
+    "notes":  "Onglet Bebe : nouvelle stat Biberons / 24h (nombre et mL sur les dernieres 24 heures glissantes)."
 }

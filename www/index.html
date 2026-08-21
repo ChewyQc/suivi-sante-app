@@ -363,7 +363,7 @@ var PALETTES = {
 var WEIGHT,SYS,DIA,DOSE,GLU,LINE,MUTE;
 var CAP = (window.Capacitor && window.Capacitor.Plugins) ? window.Capacitor.Plugins : null;
 var REMINDER_ID = 9001;
-var APP_VERSION = "3.98";
+var APP_VERSION = "3.99";
 var UPDATE_URL = "https://raw.githubusercontent.com/ChewyQc/suivi-sante-app/main/version.json";
 
 function getTheme(){
@@ -817,10 +817,18 @@ function renderBebe(){
   var lastWeight = bebeEntries.filter(function(e){return e.type==="poids";})
     .sort(function(a,b){return new Date(a.ts)-new Date(b.ts);}).pop();
 
+  var now = new Date();
+  var last24h = bebeEntries.filter(function(e){
+    var e_ts = new Date(e.ts);
+    return e.type==="biberon" && e_ts<=now && (now-e_ts)<=24*3600000;
+  });
+
   var statsHtml = "";
   if(bf.biberon){
     var totalMl = bottles.reduce(function(a,e){return a+(e.ml||0);},0);
     statsHtml += '<div class="stat"><div class="k">Biberons aujourd\'hui</div><div class="v">'+bottles.length+' · '+totalMl+' mL</div></div>';
+    var totalMl24 = last24h.reduce(function(a,e){return a+(e.ml||0);},0);
+    statsHtml += '<div class="stat"><div class="k">Biberons / 24h</div><div class="v">'+last24h.length+' · '+totalMl24+' mL</div></div>';
   }
   if(bf.couche){
     var pee = diapers.filter(function(e){return e.pee;}).length, poop = diapers.filter(function(e){return e.poop;}).length;
