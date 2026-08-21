@@ -1,5 +1,5 @@
 {
-    "version":  "3.97",
+    "version":  "3.98",
     "apkUrl":  "https://github.com/ChewyQc/suivi-sante-app/releases/latest/download/SuiviSante.apk",
-    "notes":  "Onglet Bebe : Pipi/Caca en interrupteurs a glissiere au lieu de cases a cocher."
+    "notes":  "Reglages : choisir quelles fonctionnalites bebe (Biberon, Couche, Sommeil, Poids) sont affichees, comme pour l'accueil."
 }

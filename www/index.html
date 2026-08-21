@@ -279,6 +279,10 @@
       <div class="switch-row">Afficher l'onglet Bébé
         <label class="switch"><input type="checkbox" id="bebeModeToggle"><span class="slider"></span></label>
       </div>
+      <label class="checkrow"><input type="checkbox" id="bebe-fld-biberon"> 🍼 Biberon</label>
+      <label class="checkrow"><input type="checkbox" id="bebe-fld-couche"> 🧷 Couche</label>
+      <label class="checkrow"><input type="checkbox" id="bebe-fld-sommeil"> 😴 Sommeil</label>
+      <label class="checkrow"><input type="checkbox" id="bebe-fld-poids"> ⚖️ Poids</label>
     </section>
     <section class="card settings-card mt">
       <h2>Zones cibles</h2>
@@ -351,6 +355,7 @@ var FIELDS_KEY = "suivi-sante-fields";
 var TARGETS_KEY = "suivi-sante-targets";
 var BEBE_KEY = "suivi-sante-bebe-entries";
 var BEBE_ENABLED_KEY = "suivi-sante-bebe-enabled";
+var BEBE_FIELDS_KEY = "suivi-sante-bebe-fields";
 var PALETTES = {
   light:{WEIGHT:"#3f6f6a",SYS:"#c4543b",DIA:"#d99a4e",DOSE:"#6d5b97",GLU:"#2f8f9d",LINE:"#dcd6c8",MUTE:"#7c8480"},
   dark:{WEIGHT:"#6fb3ac",SYS:"#e8785a",DIA:"#f0b56a",DOSE:"#a795d1",GLU:"#5cc4d4",LINE:"#33443f",MUTE:"#93a39c"}
@@ -358,7 +363,7 @@ var PALETTES = {
 var WEIGHT,SYS,DIA,DOSE,GLU,LINE,MUTE;
 var CAP = (window.Capacitor && window.Capacitor.Plugins) ? window.Capacitor.Plugins : null;
 var REMINDER_ID = 9001;
-var APP_VERSION = "3.97";
+var APP_VERSION = "3.98";
 var UPDATE_URL = "https://raw.githubusercontent.com/ChewyQc/suivi-sante-app/main/version.json";
 
 function getTheme(){
@@ -418,6 +423,21 @@ function applyBebeVisibility(enabled){
   if(!enabled && document.getElementById("page-bebe").classList.contains("active")){
     switchTab("home");
   }
+}
+
+function loadBebeFields(){
+  try{
+    var raw = localStorage.getItem(BEBE_FIELDS_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return {biberon:true, couche:true, sommeil:true, poids:true};
+}
+function saveBebeFields(f){ try{ localStorage.setItem(BEBE_FIELDS_KEY, JSON.stringify(f)); }catch(e){} }
+function applyBebeFieldVisibility(f){
+  $("bebe-row-biberon").style.display = f.biberon? "" : "none";
+  $("bebe-row-couche").style.display = f.couche? "" : "none";
+  $("bebe-row-sommeil").style.display = f.sommeil? "" : "none";
+  $("bebe-row-poids").style.display = f.poids? "" : "none";
 }
 
 function switchTab(name){
@@ -787,6 +807,7 @@ function bebeGroupHtml(group){
 }
 
 function renderBebe(){
+  var bf = loadBebeFields();
   var sorted = bebeEntries.slice().sort(function(a,b){return new Date(b.ts)-new Date(a.ts);});
   var todayStr = new Date().toDateString();
   var todays = bebeEntries.filter(function(e){ return new Date(e.ts).toDateString()===todayStr; });
@@ -796,19 +817,25 @@ function renderBebe(){
   var lastWeight = bebeEntries.filter(function(e){return e.type==="poids";})
     .sort(function(a,b){return new Date(a.ts)-new Date(b.ts);}).pop();
 
-  var totalMl = bottles.reduce(function(a,e){return a+(e.ml||0);},0);
-  var statsHtml = '<div class="stat"><div class="k">Biberons aujourd\'hui</div><div class="v">'+bottles.length+' · '+totalMl+' mL</div></div>';
+  var statsHtml = "";
+  if(bf.biberon){
+    var totalMl = bottles.reduce(function(a,e){return a+(e.ml||0);},0);
+    statsHtml += '<div class="stat"><div class="k">Biberons aujourd\'hui</div><div class="v">'+bottles.length+' · '+totalMl+' mL</div></div>';
+  }
+  if(bf.couche){
+    var pee = diapers.filter(function(e){return e.pee;}).length, poop = diapers.filter(function(e){return e.poop;}).length;
+    statsHtml += '<div class="stat"><div class="k">Couches aujourd\'hui</div><div class="v">'+diapers.length+' (💧'+pee+' 💩'+poop+')</div></div>';
+  }
+  if(bf.poids){
+    statsHtml += '<div class="stat"><div class="k">Dernier poids</div><div class="v" style="color:'+WEIGHT+'">'+(lastWeight? lastWeight.weight+' lbs' : "—")+'</div></div>';
+  }
+  if(bf.sommeil){
+    var totalMin = sleeps.reduce(function(a,e){return a+Math.round((new Date(e.endTs)-new Date(e.startTs))/60000);},0);
+    statsHtml += '<div class="stat"><div class="k">Sommeil aujourd\'hui</div><div class="v">'+Math.floor(totalMin/60)+'h'+(totalMin%60<10?"0":"")+(totalMin%60)+'</div></div>';
+  }
 
-  var pee = diapers.filter(function(e){return e.pee;}).length, poop = diapers.filter(function(e){return e.poop;}).length;
-  statsHtml += '<div class="stat"><div class="k">Couches aujourd\'hui</div><div class="v">'+diapers.length+' (💧'+pee+' 💩'+poop+')</div></div>';
-
-  statsHtml += '<div class="stat"><div class="k">Dernier poids</div><div class="v" style="color:'+WEIGHT+'">'+(lastWeight? lastWeight.weight+' lbs' : "—")+'</div></div>';
-
-  var totalMin = sleeps.reduce(function(a,e){return a+Math.round((new Date(e.endTs)-new Date(e.startTs))/60000);},0);
-  statsHtml += '<div class="stat"><div class="k">Sommeil aujourd\'hui</div><div class="v">'+Math.floor(totalMin/60)+'h'+(totalMin%60<10?"0":"")+(totalMin%60)+'</div></div>';
-
-  $("bebe-summary").innerHTML = '<div class="row">'+statsHtml+'</div>';
-  $("bebe-summary").style.display = "block";
+  $("bebe-summary").innerHTML = statsHtml? '<div class="row">'+statsHtml+'</div>' : "";
+  $("bebe-summary").style.display = statsHtml? "block" : "none";
 
   var weightChrono = bebeEntries.filter(function(e){return e.type==="poids";})
     .sort(function(a,b){return new Date(a.ts)-new Date(b.ts);})
@@ -827,10 +854,10 @@ function renderBebe(){
 
   var chBebe = "";
   if(isBebeEnabled()){
-    if(weightChrono.length){
+    if(bf.poids && weightChrono.length){
       chBebe += '<div class="chart-card"><h2 class="chart-title" style="color:'+WEIGHT+'">Poids bébé (lbs)</h2>'+lineChart(weightChrono,"weight",WEIGHT)+'</div>';
     }
-    if(mlChrono.length || mlPerFeedChrono.length){
+    if(bf.biberon && (mlChrono.length || mlPerFeedChrono.length)){
       var mlData = bebeMlMode==="boire" ? mlPerFeedChrono : mlChrono;
       chBebe += '<div class="chart-card"><div class="chart-head"><h2 class="chart-title" style="color:'+DOSE+'">Biberons</h2>'+
         '<div class="chart-toggle" id="bebeMlModeToggle">'+
@@ -1089,7 +1116,7 @@ function buildBackupObj(){
   return {
     app:"suivi-sante", version:1, exportedAt:new Date().toISOString(),
     entries:entries, fields:loadFields(), targets:loadTargets(), goal:loadGoal(),
-    bebeEntries:bebeEntries, bebeEnabled:isBebeEnabled()
+    bebeEntries:bebeEntries, bebeEnabled:isBebeEnabled(), bebeFields:loadBebeFields()
   };
 }
 function buildBackupJson(){ return JSON.stringify(buildBackupObj(), null, 2); }
@@ -1109,6 +1136,13 @@ function applyRestoredData(data){
     setBebeEnabled(!!data.bebeEnabled);
     $("bebeModeToggle").checked = isBebeEnabled();
     applyBebeVisibility(isBebeEnabled());
+  }
+  if(data.bebeFields){
+    saveBebeFields(data.bebeFields);
+    var bf2 = loadBebeFields();
+    $("bebe-fld-biberon").checked=!!bf2.biberon; $("bebe-fld-couche").checked=!!bf2.couche;
+    $("bebe-fld-sommeil").checked=!!bf2.sommeil; $("bebe-fld-poids").checked=!!bf2.poids;
+    applyBebeFieldVisibility(bf2);
   }
   renderBebe();
   render();
@@ -1591,6 +1625,22 @@ $("bebeModeToggle").addEventListener("change", function(){
   setBebeEnabled(this.checked);
   applyBebeVisibility(this.checked);
   renderBebe();
+});
+
+var bebeFieldsNow = loadBebeFields();
+$("bebe-fld-biberon").checked = !!bebeFieldsNow.biberon;
+$("bebe-fld-couche").checked = !!bebeFieldsNow.couche;
+$("bebe-fld-sommeil").checked = !!bebeFieldsNow.sommeil;
+$("bebe-fld-poids").checked = !!bebeFieldsNow.poids;
+applyBebeFieldVisibility(bebeFieldsNow);
+[["bebe-fld-biberon","biberon"],["bebe-fld-couche","couche"],["bebe-fld-sommeil","sommeil"],["bebe-fld-poids","poids"]].forEach(function(pair){
+  $(pair[0]).addEventListener("change", function(){
+    var f = loadBebeFields();
+    f[pair[1]] = this.checked;
+    saveBebeFields(f);
+    applyBebeFieldVisibility(f);
+    renderBebe();
+  });
 });
 
 $("appver").textContent = APP_VERSION;
